@@ -5,24 +5,24 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 const Layout = ({ children }) => {
-  const router = useRouter();
+  // const router = useRouter();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const logindata = sessionStorage.getItem('userData');
-      if (logindata) {
-        const userData = JSON.parse(logindata);
-        if (userData.roleid !== 5) {
-          router.push('/');
-          setTimeout(() => { toast("Not authorized") }, 10);
-        }
-      }else{
-        router.push('/');
-      }
-    };
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     const logindata = sessionStorage.getItem('userData');
+  //     if (logindata) {
+  //       const userData = JSON.parse(logindata);
+  //       if (userData.roleid !== 5) {
+  //         router.push('/');
+  //         setTimeout(() => { toast("Not authorized") }, 10);
+  //       }
+  //     }else{
+  //       router.push('/');
+  //     }
+  //   };
 
-    fetchData();
-  }, [router]);
+  //   fetchData();
+  // }, [router]);
 
   return <MainLayout>{children}</MainLayout>;
 };

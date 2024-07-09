@@ -5,29 +5,29 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 const Layout = ({ children }) => {
-  const router = useRouter();
+  // const router = useRouter();
 
-  useEffect(() => {
-     const handleRouteChange = () => {
-       window.scrollTo(0, 0);
-     };
-    const fetchData = async () => {
-      const logindata = sessionStorage.getItem('userData');
-      if (logindata) {
-        const userData = JSON.parse(logindata);
-        if (userData.roleid !== 1) {
-          router.push('/');
-          setTimeout(() => { toast("Not authorized") }, 10);
-        }
-      }else{
-        router.push('/');
-      }
+  // useEffect(() => {
+  //    const handleRouteChange = () => {
+  //      window.scrollTo(0, 0);
+  //    };
+  //   const fetchData = async () => {
+  //     const logindata = sessionStorage.getItem('userData');
+  //     if (logindata) {
+  //       const userData = JSON.parse(logindata);
+  //       if (userData.roleid !== 1) {
+  //         router.push('/');
+  //         setTimeout(() => { toast("Not authorized") }, 10);
+  //       }
+  //     }else{
+  //       router.push('/');
+  //     }
       
-    };
+  //   };
 
-    fetchData();
-    handleRouteChange();
-  }, [router]);
+  //   fetchData();
+  //   handleRouteChange();
+  // }, [router]);
 
   return <MainLayout>{children}</MainLayout>;
 };
