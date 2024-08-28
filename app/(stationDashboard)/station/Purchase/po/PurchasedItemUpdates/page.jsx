@@ -48,7 +48,7 @@ function viewso() {
               <th className="py-3 px-6 text-center">Sr NO</th>
               <th className="py-3 px-6 text-center">Product</th>
               <th className="py-3 px-6 text-center">Attributes</th>
-              <th className="py-3 px-6 text-center"> Quantity delivered</th>
+              <th className="py-3 px-6 text-center">Quantity delivered</th>
               <th className="py-3 px-6 text-center">Total Accepted</th>
               <th className="py-3 px-6 text-center">Total Returned</th>
               <th className="py-3 px-6 text-center">Total Waste</th>

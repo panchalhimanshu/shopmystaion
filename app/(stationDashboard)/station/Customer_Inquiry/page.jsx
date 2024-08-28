@@ -2,27 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button'
-import { Download, DownloadIcon, Eye, Import, Plus, Search, SearchIcon, Undo, Upload } from 'lucide-react';
+import { Eye, Search, SearchIcon, Undo } from 'lucide-react';
 // import StaffImportModal from './StaffImportModal'
-
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import CallFor from '@/utilities/CallFor';
 
 const CustomerInquiry = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(9);
+  const [pageSize, setPageSize] = useState(5);
   const [searchQuery, setSearchQuery] = useState('');
   const [tempSearchFields, setTempSearchFields] = useState({
     "Start Date": '',
@@ -38,22 +29,40 @@ const CustomerInquiry = () => {
     completed: ''
   });
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
-  const router = useRouter()
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`https://jsonplaceholder.typicode.com/todos`);
-        setData(response.data);
-        setLoading(false);
-      } catch (error) {
-        setError(error);
-        setLoading(false);
-      }
-    };
+  const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
+  const uoid = userData.orgid;
+  const router = useRouter();
 
-    fetchData();
+  useEffect(() => {
+    getCustomerInquiryList();
   }, []);
+
+  const getCustomerInquiryList = async () => {
+    const response = await CallFor(`v2/Greviance/GetGrevianceList?PageNumber=1&PageSize=2&Uoid=${uoid}`,
+      'POST',
+      JSON.stringify({ "filter": null }),
+      'Auth');
+    if (response?.status === 200) {
+      setData(response.data.data.list)
+      if (response.data.data.totalCount > 10) {
+        setPageSize(response.data.data.totalCount / 10);
+
+      }
+    }
+  }
+
+  const convertDate = (dateString) => {
+    // Parse the date string to create a Date object
+    const date = new Date(dateString);
+  
+    // Extract the day, month, and year
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed
+    const year = date.getFullYear();
+  
+    // Format the date as "DD-MM-YYYY"
+    return `${day}-${month}-${year}`;
+  };
 
   useEffect(() => {
     setPage(1); // Reset to first page on search
@@ -151,7 +160,7 @@ const CustomerInquiry = () => {
     <div className="container mx-auto">
       <div className="flex ">
         <SearchIcon className="text-gray-500" size={19} />
-        <h1 className="text-[20px] font-semibold mb-4 pl-2">SEARCH</h1>
+        <h1 className="text-[20px] font-semibold mb-4 pl-2">Search</h1>
       </div>
       {/* Search inputs */}
       <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-x-10">
@@ -187,7 +196,7 @@ const CustomerInquiry = () => {
         </Button>
       </div>
       <div className="flex justify-between gap-1 pb-3">
-        <div className="text-2xl text-orange-400">INQUIRY LIST</div>
+        <div className="text-2xl text-orange-400">Inquiry List</div>
         <div className="">
           {/* <StaffImportModal /> */}
           {/* <Button color="warning" className="shadow-md me-2"><DownloadIcon size={20} className='pr-1' />Preview</Button> */}
@@ -238,26 +247,22 @@ const CustomerInquiry = () => {
         </thead>
         {/* Table data */}
         <tbody>
-          {slicedData.map((item) => (
+          {data.map((item) => (
             <tr key={item.id}>
-              <td className="px-2 py-2">{item.userId}</td>
-              <td className="px-2 py-2">{item.id}</td>
-              <td className="px-2 py-2">{item.title}</td>
+              <td className="px-2 py-2">{item.createdbyname}</td>
+              <td className="px-2 py-2">{item.grevincetitle}</td>
+              <td className="px-2 py-2">{convertDate(item.gdate)}</td>
               <td className="px-2 py-2">
-                <Link href={"/station/Customer_Inquiry/Reply"}>
                   {" "}
-                  <Button color="warning" className="shadow-md">
+                  <Button color="warning" className="shadow-md" onClick={()=>router.push(`/station/Customer_Inquiry/Reply/${item?.gid}`)}>
                     <Undo size={20} className="pr-1" />
                     Reply
                   </Button>{" "}
-                </Link>
-                <Link href={"/station/Customer_Inquiry/query"}>
                   {" "}
-                  <Button color="warning" className="shadow-md">
+                  <Button color="warning" className="shadow-md" onClick={()=>router.push(`/station/Customer_Inquiry/query/${item?.gid}`)}>
                     <Eye size={20} className="pr-1" />
                     View
                   </Button>{" "}
-                </Link>
               </td>
             </tr>
           ))}

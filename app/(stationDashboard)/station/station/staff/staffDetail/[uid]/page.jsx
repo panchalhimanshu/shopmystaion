@@ -112,7 +112,7 @@ const StaffDetail = ({params}) => {
           <label className="w-1/6 font-bold mr-2 text-blue-900 dark:text-white">
             Emp ID
           </label>
-          <p className="text-blue-900 dark:text-white ml-4"> <span className='font-bold'> : </span> <span className='ml-5'>{data.usercode}</span> </p>
+          <p className="text-blue-900 dark:text-white ml-4"> <span className='font-bold'> : </span> <span className='ml-5'>{data.employeeId}</span> </p>
         </div>
 
         <div className="flex items-center mb-4">
@@ -140,7 +140,7 @@ const StaffDetail = ({params}) => {
             Is Active
           </label>
           <p className="text-blue-900 dark:text-white ml-4">
-             <span className='font-bold'> : </span> <span className='ml-5'>{data.canlogin ? "Yes" : "No"}</span> 
+             <span className='font-bold'> : </span> <span className='ml-5'>{data.accountstatus == 48 ? "Yes" : data.accountstatus == 49 ? "No" : "Both"}</span> 
           </p>
         </div>
       </div>

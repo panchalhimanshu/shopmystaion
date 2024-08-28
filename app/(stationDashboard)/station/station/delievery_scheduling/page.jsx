@@ -7,6 +7,89 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import CallFor2 from '@/utilities/CallFor2';
 import DeleteDialog from "@/components/DeleteDialog"; // Import DeleteDialog component
+import Pagination from "@/components/pagination/Pagination";
+
+
+
+const CustomTimePicker = ({ value, onChange, className }) => {
+    const [hours, setHours] = useState(() => {
+        const [hour] = value.split(':');
+        return hour ? parseInt(hour, 10) : 0;
+    });
+
+    const [minutes, setMinutes] = useState(() => {
+        const [, minute] = value.split(':');
+        return minute ? parseInt(minute, 10) : 0;
+    });
+
+    const [isAM, setIsAM] = useState(() => {
+        const [hour] = value.split(':');
+        return hour ? parseInt(hour, 10) < 12 : true;
+    });
+
+    const handleHourChange = (event) => {
+        let newHours = parseInt(event.target.value, 10);
+        if (newHours > 12) newHours = 12;
+        if (newHours < 0) newHours = 0;
+        setHours(newHours);
+        updateTime(newHours, minutes, isAM);
+    };
+
+    const handleMinuteChange = (event) => {
+        let newMinutes = parseInt(event.target.value, 10);
+        if (newMinutes > 59) newMinutes = 59;
+        if (newMinutes < 0) newMinutes = 0;
+        setMinutes(newMinutes);
+        updateTime(hours, newMinutes, isAM);
+    };
+
+    const toggleAMPM = () => {
+        const newIsAM = !isAM;
+        setIsAM(newIsAM);
+        updateTime(hours, minutes, newIsAM);
+    };
+
+    const updateTime = (hours, minutes, isAM) => {
+        let formattedHours;
+        if (hours === 0) {
+            formattedHours = 0; // Keep 0 as is
+        } else {
+            formattedHours = hours % 12 === 0 ? 12 : hours % 12;
+        }
+
+        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+        const ampm = isAM ? 'AM' : 'PM';
+        onChange(`${formattedHours}:${formattedMinutes}${ampm}`);
+    };
+
+    return (
+        <div className={`flex items-center ${className}`}>
+            <input
+                type="number"
+                value={hours}
+                onChange={handleHourChange}
+                className="w-12 p-1 border border-gray-300 rounded-md text-center"
+            />
+            <span className="mx-1">:</span>
+            <input
+                type="number"
+                value={minutes}
+                onChange={handleMinuteChange}
+                className="w-12 p-1 border border-gray-300 rounded-md text-center"
+            />
+            <button
+                type="button"
+                onClick={toggleAMPM}
+                className="ml-2 p-1 border border-gray-300 rounded-md"
+            >
+                {isAM ? 'AM' : 'PM'}
+            </button>
+        </div>
+    );
+};
+
+
+
 
 
 const deleiveryscedule = () => {
@@ -17,19 +100,19 @@ const deleiveryscedule = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(9);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalPages, setTotalPages] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [tempSearchFields, setTempSearchFields] = useState({
-    Name: '',
-    "To Time": '',
+    // Name: '',
     "From Time": '',
+    "To Time": '',
     Status: ''
   });
   const [searchFields, setSearchFields] = useState({
-    userId: '',
-    id: '',
-    title: '',
-    completed: ''
+    "From Time": '',
+    "To Time": '',
+    Status: ''
   });
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
 
@@ -37,7 +120,7 @@ const deleiveryscedule = () => {
 
   useEffect(() => {
     getListBody();
-  }, []);
+  }, [searchFields,page,pageSize ]);
 
   const getListBody = async () => {
     try {
@@ -54,13 +137,31 @@ const deleiveryscedule = () => {
     }
   }
 
-  const getDelieveryList = async (data) => {
-    const response = await CallFor2('api-fe/DeliverySlotAdminAPI/List', 'POST', data, 'Auth')
-    if (response.status === 200) {
-      console.log(response.data.Data, "respo")
-      setData(response.data.Data)
+  const getDelieveryList = async () => {
+  const formatTime = (time) => {
+    if (time.startsWith("0:")) { // Adjust this check based on how time is formatted
+      return "0001-01-01T00:00:00";
     }
+    // You can add further formatting here if needed
+    return time;
+  };
+
+  const requestBody = {
+    FromTime: searchFields["From Time"] ? formatTime(searchFields["From Time"]) : "0001-01-01T00:00:00",
+    ToTime: searchFields["To Time"] ? formatTime(searchFields["To Time"]) : "0001-01-01T00:00:00",
+    IsActive: searchFields.Status === "" ? "" : searchFields.Status === "true" ? true : false,
+    Start: page - 1,
+    Length: pageSize,
+  };
+
+  const response = await CallFor2('api-fe/DeliverySlotAdminAPI/List', 'POST', requestBody, 'Auth');
+  if (response.status === 200) {
+    console.log(response.data.Data, "respo");
+    setTotalPages(Math.ceil(response.data.recordsTotal / pageSize));
+    setData(response.data.Data);
   }
+};
+
 
   useEffect(() => {
     setPage(1); // Reset to first page on search
@@ -75,13 +176,19 @@ const deleiveryscedule = () => {
   };
 
   const handleSearch = () => {
-    setSearchFields(tempSearchFields);
-    setSearchQuery(JSON.stringify(tempSearchFields)); // Trigger useEffect
-  };
+
+    console.log(tempSearchFields,"feild")
+  setSearchFields(tempSearchFields);
+  setSearchQuery(JSON.stringify(tempSearchFields)); // Trigger useEffect
+  setPage(1); // Reset to first page on search
+  getListBody(); // Fetch the data with the new search parameters
+};
+
 
   const handleInputChange = (columnName, value) => {
     setTempSearchFields({ ...tempSearchFields, [columnName]: value });
   };
+
 
   const handleSort = (columnName) => {
     let direction = 'asc';
@@ -114,46 +221,7 @@ const deleiveryscedule = () => {
     return true;
   });
 
-  // Calculate total pages based on filtered data length and pageSize
-  const totalPages = Math.ceil(filteredData.length / pageSize);
-  // Calculate starting index for pagination
-  const startIndex = (page - 1) * pageSize;
-  // Slice the filtered data based on startIndex and pageSize
-  const slicedData = filteredData.slice(startIndex, startIndex + pageSize);
-
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-
-    const paginationItems = [];
-    const handlePageClick = (pageNumber) => () => handlePageChange(pageNumber);
-
-    paginationItems.push(
-      <button key="prev" className="bg-blue-500 text-white px-3 m-1 py-2 rounded mr-2" onClick={handlePageClick(page - 1)} disabled={page === 1}>
-        Previous
-      </button>
-    );
-
-    for (let i = 1; i <= totalPages; i++) {
-      if (i === page || (i <= 2) || (i >= totalPages - 1) || (i >= page - 1 && i <= page + 1)) {
-        paginationItems.push(
-          <button key={i} className={`px-3 py-1 m-1 rounded ${i === page ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white'}`} onClick={handlePageClick(i)}>
-            {i}
-          </button>
-        );
-      } else if (paginationItems[paginationItems.length - 1].key !== '...') {
-        paginationItems.push(<span key="..." className="px-4 py-2">...</span>);
-      }
-    }
-
-    paginationItems.push(
-      <button key="next" className="bg-blue-500 text-white m-1 px-3 py-1 rounded" onClick={handlePageClick(page + 1)} disabled={page === totalPages}>
-        Next
-      </button>
-    );
-
-    return paginationItems;
-  };
-
+ 
  //Delete
   const handleDeleteUser = async (userId) => {
     // const delUrl = `v2/users/DeleteUser?uid=${userId}`;
@@ -173,34 +241,40 @@ const deleiveryscedule = () => {
       <div className="container mx-auto">
         <div className="flex ">
           <SearchIcon className="text-gray-500" size={19} />
-          <h1 className="text-[20px] font-semibold mb-4 pl-2">SEARCH</h1>
+          <h1 className="text-[20px] font-semibold mb-4 pl-2">Search</h1>
         </div>
         {/* Search inputs */}
         <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Search input for each field */}
           {Object.keys(tempSearchFields).map((field) => (
-            <div key={field} className="flex items-center mb-2">
-              <label className="w-1/4 font-medium mr-2">{field}</label>
-              {field === "Status" ? (
-                <select
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  onChange={(e) => handleInputChange(field, e.target.value)}
-                >
-                  <option value=""></option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Pending">Pending</option>
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  onChange={(e) => handleInputChange(field, e.target.value)}
-                />
-              )}
-            </div>
-          ))}
+              <div key={field} className="flex items-center mb-2">
+                <label className="w-1/4 font-medium mr-2">{field}</label>
+                {field === "Status" ? (
+                  <select
+                    className="border border-gray-300 px-4 py-2 rounded w-3/4"
+                    onChange={(e) => handleInputChange(field, e.target.value)}
+                  >
+                    <option value=""></option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                ) : field.includes("Time") ? (
+                  <CustomTimePicker
+                    value={tempSearchFields[field]}
+                    onChange={(newValue) => handleInputChange(field, newValue)}
+                    className="w-full"
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    className="border border-gray-300 px-4 py-2 rounded w-3/4"
+                    onChange={(e) => handleInputChange(field, e.target.value)}
+                  />
+                )}
+              </div>
+            ))}
+
         </div>
+
         <div className="flex justify-center lg:mb-1 mb-3 items-center">
           <Button
             color="warning"
@@ -213,7 +287,7 @@ const deleiveryscedule = () => {
         </div>
 
         <div className=" justify-between flex gap-1 pb-3 ">
-          <div className="text-2xl text-orange-400">SCHEDULING LIST</div>
+          <div className="text-2xl text-orange-400">Scheduling List</div>
           <Button
             color="warning"
             className="shadow-md"
@@ -236,10 +310,10 @@ const deleiveryscedule = () => {
               <th
                 className="px-4 py-2 cursor
 -pointer"
-                onClick={() => handleSort("userId")}
+                onClick={() => handleSort("Id")}
               >
                 SR.NO{" "}
-                {sortConfig.key === "userId"
+                {sortConfig.key === "Id"
                   ? sortConfig.direction === "asc"
                     ? "▲"
                     : "▼"
@@ -258,10 +332,10 @@ const deleiveryscedule = () => {
             </th> */}
               <th
                 className="px-4 py-2 cursor-pointer"
-                onClick={() => handleSort("completed")}
+                onClick={() => handleSort("TimeSlot")}
               >
                 Time slot{" "}
-                {sortConfig.key === "completed"
+                {sortConfig.key === "TimeSlot"
                   ? sortConfig.direction === "asc"
                     ? "▲"
                     : "▼"
@@ -269,10 +343,10 @@ const deleiveryscedule = () => {
               </th>
               <th
                 className="px-4 py-2 cursor-pointer"
-                onClick={() => handleSort("completed")}
+                onClick={() => handleSort("DisplayOrder")}
               >
                 Display order{" "}
-                {sortConfig.key === "completed"
+                {sortConfig.key === "DisplayOrder"
                   ? sortConfig.direction === "asc"
                     ? "▲"
                     : "▼"
@@ -280,10 +354,10 @@ const deleiveryscedule = () => {
               </th>
               <th
                 className="px-4 py-2 cursor-pointer"
-                onClick={() => handleSort("completed")}
+                onClick={() => handleSort("Active")}
               >
                 STATUS{" "}
-                {sortConfig.key === "completed"
+                {sortConfig.key === "Active"
                   ? sortConfig.direction === "asc"
                     ? "▲"
                     : "▼"
@@ -291,33 +365,35 @@ const deleiveryscedule = () => {
               </th>
               <th
                 className="px-4 py-2 cursor-pointer"
-                onClick={() => handleSort("completed")}
+              
               >
                 Action{" "}
-                {sortConfig.key === "completed"
-                  ? sortConfig.direction === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
+               
               </th>
             </tr>
           </thead>
           {/* Table data */}
           <tbody>
-            {slicedData.map((item) => (
+            {data && data.map((item) => (
               <tr key={item.id}>
                 <td className="px-4 py-2">{item.Id}</td>
                 <td className="px-4 py-2">{item.TimeSlot}</td>
                 <td className="px-4 py-2">{item.DisplayOrder}</td>
-                <td className="px-4 py-2">{item.Active === true ?
-                  <span className='text-white bg-green-500 p-1 rounded-md'>Active</span>
-                  : <span className='text-white bg-red-500  p-1 rounded-md'>Inactive</span>}</td>
+                <td className="px-4 py-2">
+                  {item.Active === true ? (
+                    <span className="text-white bg-green-500 p-1 rounded-md">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="text-white bg-red-500  p-1 rounded-md">
+                      Inactive
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2">
                   <div>
                     <Link
-                      href={
-                        `/station/station/delievery_scheduling/viewdelieveryscheduling/${item.Id}`
-                      }
+                      href={`/station/station/delievery_scheduling/viewdelieveryscheduling/${item.Id}`}
                     >
                       <Button className="p-0 mr-2 bg-transparent hover:bg-transparent text-black  dark:text-white">
                         <Eye size={20}></Eye>
@@ -334,9 +410,10 @@ const deleiveryscedule = () => {
                     >
                       <FilePenLine size={20}></FilePenLine>
                     </Button>
-                    <Button className="p-0 bg-transparent hover:bg-transparent text-black  dark:text-white"
-                     onClick={() => handleDeleteUser(item.Id)} // Open delete dialog on click
-                     >
+                    <Button
+                      className="p-0 bg-transparent hover:bg-transparent text-black  dark:text-white"
+                      onClick={() => handleDeleteUser(item.Id)} // Open delete dialog on click
+                    >
                       <Trash size={20}></Trash>
                     </Button>
                   </div>
@@ -347,9 +424,16 @@ const deleiveryscedule = () => {
         </table>
 
         {/* Pagination */}
-        <div className="flex justify-end mt-4">{renderPagination()}</div>
+        
+<div className="flex justify-end mt-4">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
       </div>
-       {/* Delete Dialog */}
+      {/* Delete Dialog */}
       <DeleteDialog
         isOpen={isDeleteDialogOpen}
         onClose={handleCloseDeleteDialog}

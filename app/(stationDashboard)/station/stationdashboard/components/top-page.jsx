@@ -48,32 +48,54 @@ const TopPage = ({ roleId, itemsPerPage = 10 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [bodyData, setBodyData] = useState(null);
 
-  const dataa = {
-    roleId: roleId,
-    desc: false,
-    allRoles: true,
-    filter: {
-      name: "",
-      status: 0,
-    },
-  };
+  // const fetchBodyData = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const response = await CallFor("v2/users/GetUsersByRoleId", "get", null, "Auth");
+  //     console.log(response.data.model)
+  //     setBodyData(response.data);
+  //     setLoading(false);
+  //   } catch (error) {
+  //     setError(error);
+  //     setLoading(false);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchBodyData();
+  // }, []);
+
+  
 
   useEffect(() => {
-    fetchData(currentPage);
-  }, [currentPage]);
+    fetchData();
+  }, []);
 
-  const fetchData = async (page) => {
+  const datas = {
+    "roleId": 0,
+    "desc": false,
+    "allRoles": true,
+    "name": null,
+    "accountstatus": null,
+    "paginationFilter": {
+      "pageNumber": 1,
+      "pageSize": 100
+    }
+  }
+
+  const fetchData = async () => {
     setLoading(true);
     try {
       const response = await CallFor(
-        `v2/users/GetUsersByRoleId?PageNumber=${page + 1}&PageSize=${itemsPerPage}`,
+        `v2/users/GetUsersByRoleId`,
         "POST",
-        JSON.stringify(dataa),
+        datas,
         "Auth"
       );
-      setData(response.data.allUsers);
-      setTotalPages(Math.ceil(response.data.totalCount / itemsPerPage));
+      setData(response.data.data);
+      // setTotalPages(Math.ceil(response.data.totalCount / itemsPerPage));
       setLoading(false);
     } catch (error) {
       setError(error);

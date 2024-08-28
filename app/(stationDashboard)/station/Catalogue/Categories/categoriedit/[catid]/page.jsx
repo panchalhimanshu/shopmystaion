@@ -10,7 +10,6 @@ import Select from 'react-select';
 
 function Categoriedit({ params }) {
   const router = useRouter();
-  // State variables for form inputs
   const [loading, setLoading] = useState(false);
   const [parentCategory, setParentCategory] = useState(null);
   const [options, setOptions] = useState([]);
@@ -21,26 +20,17 @@ function Categoriedit({ params }) {
     catfullpath: null,
     parentcatid: '',
     ispublished: false,
+    displayorder: ''
   });
 
-  const fetchCategories = async () => {
+  const GetCategoryDropDown = async () => {
     try {
-      const response = await CallFor(
-        `v2/Common/GetCategoryIdName`,
-        "post",
-        null,
-        "Auth"
-      );
-      // Log the response to understand its structure
-      console.log("Fetched categories response:", response.data);
-
-      if (response) {
-        // Transform data for react-select
+      const response = await CallFor(`v2/Common/GetCategoryDropDown`, "POST", null, "Auth");
+      if (response && response.data) {
         const options = response.data.map(category => ({
           value: category.id,
           label: category.name
         }));
-        console.log("Formatted options:", options);
         setOptions(options);
       } else {
         throw new Error("Unexpected response format");
@@ -50,18 +40,11 @@ function Categoriedit({ params }) {
     }
   };
 
-  useEffect(() => {
-    const getCategoryList = async () => {
-      setLoading(true);
-      try {
-        const response = await CallFor(
-          `v2/Common/GetCategoryById/${params.catid}`,
-          "POST",
-          null,
-          "Auth"
-        );
-        const data = response.data;
-
+  const fetchCategory = async () => {
+    try {
+      const response = await CallFor(`v2/Common/GetCategoryById/${params.catid}`, "POST", null, "Auth");
+      if (response && response.data.data) {
+        const data = response.data.data;
         setFormData({
           catid: data.catid,
           catname: data.catname,
@@ -69,71 +52,41 @@ function Categoriedit({ params }) {
           catfullpath: data.catfullpath,
           parentcatid: data.parentcatid,
           ispublished: data.ispublished,
+          displayorder: data.displayorder
         });
-
-        // Find and set the initial parent category option
-        const parentCategoryOption = options.find(option => option.value === data.parentcatid);
-        setParentCategory(parentCategoryOption);
-
-      } catch (error) {
-        console.error('Error fetching category:', error);
-      } finally {
-        setLoading(false);
+      } else {
+        throw new Error("Unexpected response format");
       }
-    };
-
-    fetchCategories();
-  }, []);
+    } catch (error) {
+      console.error('Error fetching category:', error);
+    }
+  };
 
   useEffect(() => {
-    if (options.length > 0) {
-      const getCategoryList = async () => {
-        setLoading(true);
-        try {
-          const response = await CallFor(
-            `v2/Common/GetCategoryById/${params.catid}`,
-            "POST",
-            null,
-            "Auth"
-          );
-          const data = response.data;
+    setLoading(true);
+    GetCategoryDropDown().then(() => {
+      fetchCategory().finally(() => {
+        setLoading(false);
+      });
+    });
+  }, [params.catid]);
 
-          setFormData({
-            catid: data.catid,
-            catname: data.catname,
-            catdesc: data.catdesc,
-            catfullpath: data.catfullpath,
-            parentcatid: data.parentcatid,
-            ispublished: data.ispublished,
-          });
-
-          // Find and set the initial parent category option
-          const parentCategoryOption = options.find(option => option.value === data.parentcatid);
-          setParentCategory(parentCategoryOption);
-
-        } catch (error) {
-          console.error('Error fetching category:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      getCategoryList();
+  useEffect(() => {
+    if (options.length > 0 && formData.parentcatid) {
+      const parentCategoryOption = options.find(option => option.value === formData.parentcatid);
+      setParentCategory(parentCategoryOption);
     }
-  }, [options, params.catid]);
+  }, [options, formData.parentcatid]);
 
-  // Handle change for all form inputs
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
-
+    const newValue = type === 'checkbox' ? checked : (name === 'displayorder' ? Number(value) : value);
     setFormData({
       ...formData,
       [name]: newValue,
     });
   };
 
-  // Handle change for the switch component
   const handleSwitchChange = (checked) => {
     setFormData({
       ...formData,
@@ -141,25 +94,22 @@ function Categoriedit({ params }) {
     });
   };
 
-  // Handle change for the Select component
   const handleSelectChange = (selectedOption) => {
     setParentCategory(selectedOption);
     setFormData({
       ...formData,
-      parentcatid: selectedOption ? selectedOption.value : '',
+      parentcatid: selectedOption ? selectedOption.value : 0,
     });
   };
 
-  // Handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const submissionData = {
+      ...formData,
+      parentcatid: formData.parentcatid || 0,
+    };
     try {
-      const response = await CallFor(
-        "v2/Common/Updatecategory",
-        "POST",
-        formData,
-        "Auth"
-      );
+      const response = await CallFor("v2/Common/Updatecategory", "POST", submissionData, "Auth");
       if (response) {
         reToast.success("Categories edited successfully!");
         router.push("/station/Catalogue/Categories");
@@ -168,6 +118,7 @@ function Categoriedit({ params }) {
       }
     } catch (error) {
       console.error('Error updating category:', error);
+      reToast.error("Error editing Categories.");
     }
   };
 
@@ -201,6 +152,17 @@ function Categoriedit({ params }) {
             ></textarea>
           </div>
           <div className="flex items-center space-x-4">
+            <label htmlFor="displayorder" className="w-1/4 font-medium dark:text-white text-gray-700">Display Order</label>
+            <input
+              type='number'
+              id="displayorder"
+              name="displayorder"
+              value={formData.displayorder}
+              onChange={handleChange}
+              className="flex-grow p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-center space-x-4">
             <label htmlFor="parentCategory" className="w-1/4 font-medium dark:text-white text-gray-700">Parent Category</label>
             <Select
               id="parentCategory"
@@ -208,7 +170,7 @@ function Categoriedit({ params }) {
               value={parentCategory}
               onChange={handleSelectChange}
               options={options}
-              className="flex-grow z-20"
+              className="flex-grow z-20 text-black"
             />
           </div>
           <div className="flex items-center space-x-4">

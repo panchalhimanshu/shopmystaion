@@ -1,36 +1,37 @@
-"use client";
+"use client"
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Link from "next/link";
-import React, { useState } from "react";
-import CallFor from "@/utilities/CallFor";
-import { toast as reToast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { toast as reToast } from "react-hot-toast";
+import CallFor from "@/utilities/CallFor";
 import * as Yup from "yup";
 
 const validationSchema = Yup.object().shape({
   firstname: Yup.string().required("First name is required"),
   lastName: Yup.string().required("Last name is required"),
   emailid: Yup.string().email("Invalid email").required("Email is required"),
-  empId: Yup.string().required("Employee ID is required"),
-  userId: Yup.string().required("User ID is required"),
+  // empId: Yup.string().required("Employee ID is required"),
+  // userId: Yup.string().required("User ID is required"),
   mobno: Yup.string().required("Phone number is required"),
   role: Yup.string().required("Role is required"),
   password: Yup.string().required("Password is required"),
 });
 
-
-
-const addEmployee = () => {
+const AddEmployee = () => {
   const router = useRouter();
   const [errors, setErrors] = useState({});
-   const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
-   // const isAdmin = userData.isadmin === true;
-   const roleId = userData.roleid;
-   const orgid = userData.orgid;
+  const [roles, setRoles] = useState([]);
+  const [bodyData, setBodyData] = useState(null);
+  const [Activebtn, setActivebtn] = useState(false);
+  const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
+  const Uid = userData.uid ;
+  const orgid = userData.orgid
   const [formData, setFormData] = useState({
     firstname: "",
     lastname: "",
@@ -42,62 +43,66 @@ const addEmployee = () => {
     password: "",
     canLogin: true,
     isApproved: true,
-    accountStatus: 76,
+    accountStatus: "Active",
     roleId: "",
     roleName: "",
     roleModels: [
       {
         Urmid: 0,
-        Uid: 0,
+        Uid: Uid,
         Uoid: sessionStorage.getItem("userData")
           ? JSON.parse(sessionStorage.getItem("userData")).orgid
           : null,
-        Roleid: roleId,
+        Roleid: "",
+        roletypeid: "",
         Self: null,
       },
     ],
     rightsOfUserModel: {
-      modules: [
-        {
-          moduleName: "Station",
-          rightslist: [
-            { rightid: 1, rightname: "Create", selected: false },
-            { rightid: 2, rightname: "Read", selected: false },
-            { rightid: 3, rightname: "Update", selected: false },
-            { rightid: 4, rightname: "Delete", selected: false },
-          ],
-        },
-        {
-          moduleName: "Sales",
-          rightslist: [
-            { rightid: 5, rightname: "Create", selected: false },
-            { rightid: 6, rightname: "Read", selected: false },
-            { rightid: 7, rightname: "Update", selected: false },
-            { rightid: 8, rightname: "Delete", selected: false },
-          ],
-        },
-        {
-          moduleName: "Purchase",
-          rightslist: [
-            { rightid: 9, rightname: "Create", selected: false },
-            { rightid: 10, rightname: "Read", selected: false },
-            { rightid: 11, rightname: "Update", selected: false },
-            { rightid: 12, rightname: "Delete", selected: false },
-          ],
-        },
-        {
-          moduleName: "Catalog",
-          rightslist: [
-            { rightid: 13, rightname: "Create", selected: false },
-            { rightid: 14, rightname: "Read", selected: false },
-            { rightid: 15, rightname: "Update", selected: false },
-            { rightid: 16, rightname: "Delete", selected: false },
-          ],
-        },
-      ],
+      modules: []
     },
   });
- 
+
+  useEffect(() => {
+    const fetchBodyData = async () => {
+      try {
+        const response = await CallFor(`v2/users/SaveUser`, "GET", null, "Auth");
+        setBodyData(response.data);
+        setRoles(response.data.dropdowns.roles);
+        setFormData(prevFormData => ({
+          ...prevFormData,
+          rightsOfUserModel: response.data.model.rightsofUserModel
+        }));
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+        reToast.error("Error fetching roles");
+      }
+    };
+    fetchBodyData();
+  }, []);
+
+  const renderRightsCheckboxes = (module) => {
+    const allRights = ['Create', 'Read', 'Update', 'Delete'];
+    return allRights.map((right) => {
+      const rightObj = module.rightslist.find(r => r.rightname === right);
+      if (rightObj) {
+        return (
+          <td key={right} className="justify-center flex items-center">
+            <input
+              type="checkbox"
+              name={`${module.moduleName}-${right}`}
+              checked={rightObj.selected}
+              onChange={handleChange}
+              className="w-[25px] h-[25px]"
+            />
+          </td>
+        );
+      } else {
+        return <td key={right}></td>; // Empty cell for missing rights
+      }
+    });
+  };
+
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -106,7 +111,6 @@ const addEmployee = () => {
       const [moduleName, rightName] = name.split("-");
 
       if (rightName === "All") {
-        // Handle "All" checkbox
         setFormData((prevFormData) => {
           const updatedModules = prevFormData.rightsOfUserModel.modules.map(
             (module) => {
@@ -129,7 +133,6 @@ const addEmployee = () => {
           };
         });
       } else {
-        // Handle individual rights checkboxes
         setFormData((prevFormData) => {
           const updatedModules = prevFormData.rightsOfUserModel.modules.map(
             (module) => {
@@ -155,25 +158,29 @@ const addEmployee = () => {
         });
       }
     } else if (name === "role") {
-      let roleId = 0;
-      let roleName = "";
-
-      if (value === "Warehouse") {
-        roleId = 4;
-        roleName = "Warehouse";
-      } else if (value === "Station") {
-        roleId = 5;
-        roleName = "Station";
-      } else if (value === "Admin") {
-        roleId = 1;
-        roleName = "Admin";
-      }
-
+      const selectedRole = roles.find(role => role.id.toString() === value);
       setFormData((prevFormData) => ({
         ...prevFormData,
         role: value,
-        roleId: roleId,
-        roleName: roleName,
+        roleId: selectedRole ? selectedRole.id : "",
+        roleName: selectedRole ? selectedRole.name : "",
+        roleModels: [
+          {
+            ...prevFormData.roleModels[0],
+            Roleid: selectedRole ? selectedRole.id : "",
+            roletypeid: selectedRole ? selectedRole.id : ""
+          },
+        ],
+      }));
+    } else if (name === "canLogin" || name === "isApproved") {
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        [name]: checked,
+      }));
+    } else if (name === "accountStatus") {
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        accountStatus: value,
       }));
     } else {
       setFormData((prevFormData) => ({
@@ -182,16 +189,11 @@ const addEmployee = () => {
       }));
     }
 
-    // Clear the specific field's error message when the input value changes
     setErrors((prevErrors) => ({
       ...prevErrors,
       [name]: "",
     }));
   };
-
-  const token = sessionStorage.getItem("userData");
-  const abc = JSON.parse(token);
-  console.log(abc);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -206,27 +208,27 @@ const addEmployee = () => {
         lastname: formData.lastName,
         emailid: formData.emailid,
         mobno: formData.mobno,
-        canlogin: formData.canLogin,
+        canlogin: true,
         password: formData.password,
         usercode: formData.userId,
         image: "",
         profilestatus: 1,
         isapproved: formData.isApproved,
-        accountstatus: formData.accountStatus,
+        accountstatus:Activebtn ? 48 : 49, // 48 for Active, 49 for Inactive
         roleid: formData.roleId,
         roleName: formData.roleName,
         roleModels: formData.roleModels,
         rightsofUserModel: formData.rightsOfUserModel,
       });
 
-      const response2 = await CallFor(
+      const response = await CallFor(
         `v2/users/SaveUser`,
         "POST",
         bodydata,
         "Auth"
       );
-      console.log(JSON.stringify(response2));
-      if (response2) {
+
+      if (response) {
         reToast.success("User saved successfully!");
         router.push("/station/station/staff");
       } else {
@@ -234,7 +236,6 @@ const addEmployee = () => {
       }
     } catch (err) {
       if (err instanceof Yup.ValidationError) {
-        // Validation failed
         const newErrors = {};
         err.inner.forEach((error) => {
           newErrors[error.path] = error.message;
@@ -244,231 +245,194 @@ const addEmployee = () => {
     }
   };
 
+
   return (
-    <>
-      <div className="container mx-auto">
-        <div className="text-2xl text-orange-400">Employee</div>
+    <div className="container mx-auto">
+      <div className="text-2xl text-orange-400 mb-4">Add Employee</div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 w-75 ">
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="grid grid-cols-2 gap-4">
+          {/* First column */}
+          <div className="space-y-4">
             <div>
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">First Name</label>
-                <input
-                  type="text"
-                  name="firstname"
-                  value={formData.firstname}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  placeholder="Enter your first name"
-                />
-              </div>
-
-              {errors.firstname && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.firstname}</p>
-                </div>
-              )}
-
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">Email</label>
-                <input
-                  type="text"
-                  name="emailid"
-                  value={formData.emailid}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  placeholder="Enter your email"
-                />
-              </div>
-
-              {errors.emailid && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.emailid}</p>
-                </div>
-              )}
-
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">User ID</label>
-                <input
-                  type="text"
-                  name="userId"
-                  value={formData.userId}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  placeholder="Enter User ID"
-                />
-              </div>
-
-              {errors.userId && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.userId}</p>
-                </div>
-              )}
-
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">Emp ID</label>
-                <input
-                  type="text"
-                  name="empId"
-                  value={formData?.empId}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  placeholder="Enter Employee ID"
-                />
-              </div>
-
-              {errors.empId && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.empId}</p>
-                </div>
-              )}
+              <Label htmlFor="firstname">First Name</Label>
+              <Input
+                id="firstname"
+                name="firstname"
+                value={formData.firstname}
+                onChange={handleChange}
+                placeholder="Enter your first name"
+              />
+              {errors.firstname && <p className="text-red-500">{errors.firstname}</p>}
             </div>
+
             <div>
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">Last Name</label>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  placeholder="Enter your last name"
-                />
-              </div>
-
-              {errors.lastName && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.lastName}</p>
-                </div>
-              )}
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">Phone No</label>
-                <input
-                  type="text"
-                  name="mobno"
-                  value={formData.mobno}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  placeholder="Enter your phone number"
-                />
-              </div>
-
-              {errors.mobno && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.mobno}</p>
-                </div>
-              )}
-
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">Role</label>
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                >
-                  <option value="">Select Role</option>
-                  <option value="Warehouse">Warehouse</option>
-                  <option value="Station">Station</option>
-                  <option value="Admin">Admin</option>
-                </select>
-              </div>
-
-              {errors.role && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.role}</p>
-                </div>
-              )}
-
-              <div className="flex items-center mb-2">
-                <label className="w-1/6 font-medium mr-2">Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                  placeholder="Enter password"
-                />
-              </div>
-
-              {errors.password && (
-                <div className="flex items-center mb-2">
-                  <label className="w-1/6 font-medium mr-2"> </label>
-                  <p className="text-red-500 pl-3">{errors.password}</p>
-                </div>
-              )}
+              <Label htmlFor="emailid">Email</Label>
+              <Input
+                id="emailid"
+                name="emailid"
+                value={formData.emailid}
+                onChange={handleChange}
+                placeholder="Enter your email"
+              />
+              {errors.emailid && <p className="text-red-500">{errors.emailid}</p>}
             </div>
-            <div className="flex items-center space-x-4">
-              <label
-                htmlFor="gtin"
-                className="w-1/4 font-medium dark:text-white text-gray-700"
+
+            <div>
+              <Label htmlFor="userId">User ID</Label>
+              <Input
+                id="userId"
+                name="userId"
+                value={formData.userId}
+                onChange={handleChange}
+                placeholder="Enter User ID"
+                disabled
+              />
+              {/* {errors.userId && <p className="text-red-500">{errors.userId}</p>} */}
+            </div>
+
+            <div>
+              <Label htmlFor="empId">Emp ID</Label>
+              <Input
+                id="empId"
+                name="empId"
+                value={formData.empId}
+                onChange={handleChange}
+                placeholder="Enter Employee ID"
+                disabled
+              />
+              {/* {errors.empId && <p className="text-red-500">{errors.empId}</p>} */}
+            </div>
+          </div>
+
+          {/* Second column */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                placeholder="Enter your last name"
+              />
+              {errors.lastName && <p className="text-red-500">{errors.lastName}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="mobno">Phone No</Label>
+              <Input
+                id="mobno"
+                name="mobno"
+                value={formData.mobno}
+                onChange={handleChange}
+                placeholder="Enter your phone number"
+              />
+              {errors.mobno && <p className="text-red-500">{errors.mobno}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="role">Role</Label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               >
-                Is Active
-              </label>
-              <div>
-                <Switch defaultChecked />
-              </div>
+                <option value="">Select Role</option>
+                {roles && roles.map((role) => (
+                  <option key={role.id} value={role.id.toString()}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+              {errors.role && <p className="text-red-500">{errors.role}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter password"
+              />
+              {errors.password && <p className="text-red-500">{errors.password}</p>}
             </div>
           </div>
+        </div>
 
-          <div className="text-2xl text-orange-400 mt-3">Roles & Rights</div>
+        <div className="space-y-4">
+          {/* <div className="flex items-center space-x-2">
+            <Switch
+              id="canLogin"
+              name="canLogin"
+              checked={formData.canLogin}
+              onCheckedChange={(checked) => handleChange({ target: { name: 'canLogin', type: 'checkbox', checked } })}
+            />
+            <Label htmlFor="canLogin">Can Login</Label>
+          </div> */}
+
+          {/* <div className="flex items-center space-x-2">
+            <Switch
+              id="isApproved"
+              name="isApproved"
+              checked={formData.isApproved}
+              onCheckedChange={(checked) => handleChange({ target: { name: 'isApproved', type: 'checkbox', checked } })}
+            />
+            <Label htmlFor="isApproved">Is Approved</Label>
+          </div> */}
+
           <div>
-            <table>
-              <tbody>
-                <tr className="grid grid-cols-6 gap-16 mb-2">
-                  <th></th>
-                  <th>All</th>
-                  <th>Create</th>
-                  <th>Read</th>
-                  <th>Update</th>
-                  <th>Delete</th>
-                </tr>
-                {formData.rightsOfUserModel.modules.map(
-                  (module, moduleIndex) => (
-                    <tr
-                      className="grid grid-cols-6 mb-2 gap-16"
-                      key={moduleIndex}
-                    >
-                      <td className="font-medium">{module.moduleName}</td>
-                      <td className="justify-center flex items-center">
-                        <input
-                          type="checkbox"
-                          name={`${module.moduleName}-All`}
-                          checked={module.rightslist.every(
-                            (right) => right.selected
-                          )}
-                          onChange={handleChange}
-                          className="w-[25px] h-[25px]"
-                        />
-                      </td>
-                      {/* <span>{module.moduleName}</span> */}
-                      {module.rightslist.map((right, rightIndex) => (
-                        <td className="justify-center flex items-center">
-                          <input
-                            key={rightIndex}
-                            type="checkbox"
-                            name={`${module.moduleName}-${right.rightname}`}
-                            checked={right.selected}
-                            onChange={handleChange}
-                            className="w-[25px] h-[25px]"
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
+            <Label className="mr-2">Account Status</Label>
+              <Switch
+                                checked={Activebtn}
+                                onCheckedChange={(checked) => setActivebtn(checked)}
+                            />
           </div>
+        </div>
+          <div className="text-2xl text-orange-400 mt-3">Roles & Rights</div>
+        <div>
+          <table className="w-full">
+            <thead>
+              <tr className="grid grid-cols-6 gap-4 mb-2">
+                <th className="text-left">Module</th>
+                <th>All</th>
+                <th>Create</th>
+                <th>Read</th>
+                <th>Update</th>
+                <th>Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              {formData.rightsOfUserModel && formData.rightsOfUserModel.modules.map(
+                (module, moduleIndex) => (
+                  <tr
+                    className="grid  grid-cols-6 mb-2 gap-4"
+                    key={moduleIndex}
+                  >
+                    <td className="font-medium">{module.moduleName}</td>
+                    <td className="justify-center flex items-center">
+                      <input
+                        type="checkbox"
+                        name={`${module.moduleName}-All`}
+                        checked={module.rightslist.every(
+                          (right) => right.selected
+                        )}
+                        onChange={handleChange}
+                        className="w-[25px] h-[25px]"
+                      />
+                    </td>
+                    {renderRightsCheckboxes(module)}
+                  </tr>
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
 
           <div className="flex justify-end">
             <Link href="/station/station/staff">
@@ -478,10 +442,11 @@ const addEmployee = () => {
               Save
             </Button>
           </div>
+          
         </form>
       </div>
-    </>
+    
   );
 };
 
-export default addEmployee;
+export default AddEmployee;

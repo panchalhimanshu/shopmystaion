@@ -2,401 +2,220 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Download, Eye, Search, SearchIcon, Upload } from "lucide-react";
-
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Eye, Search, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import CallFor from "@/utilities/CallFor";
-
-const order = () => {
-  const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
-  const orgid = userData.orgid ;
-  
+import Pagination from "@/components/pagination/Pagination";
+const Order = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(9);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [tempSearchFields, setTempSearchFields] = useState({
-    "Order Id": "",
-    "Shipping Status": "",
-    "Order Status": "",
-    "Created On": "",
-    "Payment Status": "",
+  const [pageSize, setPageSize] = useState(5);
+  const [totalPages, setTotalPages] = useState(0);
+  const [organisations, setOrganisations] = useState([]);
+  const [searchParams, setSearchParams] = useState({
+    orderDate: "",
+    deliveryDate: "",
+    targetOrgUid: null,
   });
-  const [searchFields, setSearchFields] = useState({
-    userId: "",
-    id: "",
-    title: "",
-    completed: "",
-  });
-  const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+    fetchInitialData();
+  }, []);
 
-        const bodyData = {
-          "orderId": null,
-          "orderStatus": null,
-          "shippingStatus": null,
-          "paymentStatus": null,
-          "createdOn": null
-        }
-
-        const response = await CallFor(
-          `v2/Orders/GetAllOrders?PageNumber=${page}&PageSize=${pageSize}`,
-          "POST",
-          bodyData,
-          "Auth"
-        );
-        setData(response.data.data);
-        console.log(data);// Adjust to match the actual data structure
-        setLoading(false);
-      } catch (error) {
-        setError(error);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+  useEffect(() => {
+    fetchOrders();
   }, [page, pageSize]);
 
+  const fetchInitialData = async () => {
+    try {
+      const response = await CallFor(`v2/Orders/GetOrdersV2`,"get",null,"Auth");
+      setOrganisations(response.data.dropdowns.organisations);
+    } catch (error) {
+      console.error("Error fetching initial data:", error);
+    }
+  };
 
-  useEffect(() => {
-    setPage(1); // Reset to first page on search
-  }, [searchQuery, pageSize]);
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await CallFor(
+        "v2/Orders/GetOrdersV2/false",
+        "POST",
+        {
+          orderDate: searchParams.orderDate || "0001-01-01T00:00:00",
+          deliveryDate: searchParams.deliveryDate || "0001-01-01T00:00:00",
+          targetOrgUid: searchParams.targetOrgUid,
+          paginationFilter: {
+            pageNumber: page,
+            pageSize: pageSize,
+          }
+        },
+        "Auth"
+      );
+      setData(response.data.data);
+      setTotalPages(Math.ceil(response.data.totalRecords / pageSize));
+      setLoading(false);
+    } catch (error) {
+      setError(error);
+      setLoading(false);
+    }
+  };
 
   const handlePageChange = (pageNumber) => {
     setPage(pageNumber);
   };
 
-  const handlePageSizeChange = (size) => {
-    setPageSize(size);
-  };
-
   const handleSearch = () => {
-    setSearchFields(tempSearchFields);
-    setSearchQuery(JSON.stringify(tempSearchFields)); // Trigger useEffect
+    setPage(1);
+    fetchOrders();
   };
 
-  const handleInputChange = (columnName, value) => {
-    setTempSearchFields({ ...tempSearchFields, [columnName]: value });
+  const handleInputChange = (field, value) => {
+    setSearchParams({ ...searchParams, [field]: value });
   };
 
-  const handleSort = (columnName) => {
-    let direction = "asc";
-    if (sortConfig.key === columnName && sortConfig.direction === "asc") {
-      direction = "desc";
+ 
+
+  const getOrderStatus = (status) => {
+    switch (status) {
+      case 1: return "New";
+      case 2: return "Confirmed";
+      case 3: return "Rejected";
+      case 4: return "Delivered";
+      case 59: return "Partially Delivered";
+      case 60: return "Completed";
+      case 61: return "Returned";
+      default: return "Unknown";
     }
-    setSortConfig({ key: columnName, direction });
   };
 
-  const sortedData = [...data].sort((a, b) => {
-    if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === "asc" ? -1 : 1;
+  const getOrderStatusStyle = (status) => {
+    switch (status) {
+      case 1: return " rounded-full bg-blue-500 text-white"; // New
+      case 2: return " rounded-full bg-green-500 text-white"; // Confirmed
+      case 3: return " rounded-full bg-red-500 text-white"; // Rejected
+      case 4: return " rounded-full bg-yellow-500 text-white"; // Delivered
+      case 59: return " rounded-full bg-purple-400 text-white"; // Partially Delivered
+      case 60: return " rounded-full bg-teal-500 text-white"; // Completed
+      case 61: return " rounded-full bg-orange-500 text-white"; // Returned
+      default: return " rounded-full bg-gray-500 text-white"; // Unknown
     }
-    if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === "asc" ? 1 : -1;
-    }
-    return 0;
-  });
-
-  const filteredData = sortedData.filter((item) => {
-    for (let key in searchFields) {
-      if (searchFields[key] !== "") {
-        const itemValue = item[key]?.toString().toLowerCase() || "";
-        const searchValue = searchFields[key].toLowerCase();
-        if (!itemValue.includes(searchValue)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  });
-
-  // Calculate total pages based on filtered data length and pageSize
-  const totalPages = Math.ceil(filteredData.length / pageSize);
-  // Calculate starting index for pagination
-  const startIndex = (page - 1) * pageSize;
-  // Slice the filtered data based on startIndex and pageSize
-  const slicedData = filteredData.slice(startIndex, startIndex + pageSize);
-
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-
-    const paginationItems = [];
-    const handlePageClick = (pageNumber) => () => handlePageChange(pageNumber);
-
-    paginationItems.push(
-      <button
-        key="prev"
-        className="bg-blue-500 text-white px-3 m-1 py-2 rounded mr-2"
-        onClick={handlePageClick(page - 1)}
-        disabled={page === 1}
-      >
-        Previous
-      </button>
-    );
-
-    for (let i = 1; i <= totalPages; i++) {
-      if (
-        i === page ||
-        i <= 2 ||
-        i >= totalPages - 1 ||
-        (i >= page - 1 && i <= page + 1)
-      ) {
-        paginationItems.push(
-          <button
-            key={i}
-            className={`px-3 py-1 m-1 rounded ${
-              i === page ? "bg-blue-700 text-white" : "bg-blue-500 text-white"
-            }`}
-            onClick={handlePageClick(i)}
-          >
-            {i}
-          </button>
-        );
-      } else if (paginationItems[paginationItems.length - 1].key !== "...") {
-        paginationItems.push(
-          <span key="..." className="px-4 py-2">
-            ...
-          </span>
-        );
-      }
-    }
-
-    paginationItems.push(
-      <button
-        key="next"
-        className="bg-blue-500 text-white m-1 px-3 py-1 rounded"
-        onClick={handlePageClick(page + 1)}
-        disabled={page === totalPages}
-      >
-        Next
-      </button>
-    );
-
-    return paginationItems;
   };
+
+  const OrderStatusCell = ({ status }) => (
+    <div className={`px-2 mt-2 ${getOrderStatusStyle(status)}`}>
+      {getOrderStatus(status)}
+    </div>
+  );
 
   return (
     <div className="container mx-auto">
-      <div className="flex ">
+      <div className="flex">
         <SearchIcon className="text-gray-500" size={19} />
-        <h1 className="text-[20px] font-semibold mb-4 pl-2">SEARCH</h1>
+        <h1 className="text-[20px] font-semibold mb-4 pl-2">Search</h1>
       </div>
+
       {/* Search inputs */}
       <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-x-10">
-        {/* Search input for each field */}
-        {Object.keys(tempSearchFields).map((field) => (
-          <div key={field} className="flex items-center mb-2">
-            <label className="w-1/4 font-medium mr-2">{field}</label>
-            {field === "Created On" ? (
-              <input
-                type="date" // Change input type to 'date'
-                className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                value={tempSearchFields[field]}
-                onChange={(e) => handleInputChange(field, e.target.value)}
-              />
-            ) : field === "Shipping Status" ||
-              field === "Order Status" ||
-              field === "Payment Status" ? (
-              <select
-                className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                value={tempSearchFields[field]}
-                onChange={(e) => handleInputChange(field, e.target.value)}
-              >
-                <option value=""></option>
-                <option value="pending">Pending</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                {/* Add more options as needed */}
-              </select>
-            ) : (
-              <input
-                type="text"
-                className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                onChange={(e) => handleInputChange(field, e.target.value)}
-              />
-            )}
-          </div>
-        ))}
+        <div className="flex items-center mb-2">
+          <label className="w-1/4 font-medium mr-2">Order Date</label>
+          <input
+            type="date"
+            className="border border-gray-300 px-4 py-2 rounded w-3/4"
+            value={searchParams.orderDate}
+            onChange={(e) => handleInputChange("orderDate", e.target.value)}
+          />
+        </div>
+        <div className="flex items-center mb-2">
+          <label className="w-1/4 font-medium mr-2">Delivery Date</label>
+          <input
+            type="date"
+            className="border border-gray-300 px-4 py-2 rounded w-3/4"
+            value={searchParams.deliveryDate}
+            onChange={(e) => handleInputChange("deliveryDate", e.target.value)}
+          />
+        </div>
+        <div className="flex items-center mb-2">
+          <label className="w-1/4 font-medium mr-2">Organisation</label>
+          <select
+            className="border border-gray-300 px-4 py-2 rounded w-3/4"
+            value={searchParams.targetOrgUid || ""}
+            onChange={(e) => handleInputChange("targetOrgUid", e.target.value)}
+          >
+            <option value="">Select Organisation</option>
+            {organisations.map((org) => (
+              <option key={org.uid} value={org.uid}>
+                {org.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
       <div className="flex justify-center lg:mb-1 mb-3 items-center">
-        <Button
-          color="warning"
-          className="shadow-md w-28"
-          onClick={handleSearch}
-        >
+        <Button color="warning" className="shadow-md w-28" onClick={handleSearch}>
           <Search size={20} className="pr-1" />
           Search
         </Button>
       </div>
 
-      <div className=" justify-between flex gap-1 pb-3 ">
-        <div className="text-2xl text-orange-400">ORDERS</div>
-        <div>
-          {/* <Dialog>
-          <DialogTrigger asChild>
-            <Button color="success" className="shadow-md pr-2"> <Download size={20} className='pr-1' />Import</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="text-base font-medium ">
-                Add Station Data
-              </DialogTitle>
-            </DialogHeader>
-            <DialogFooter className="mt-8">
-              <DialogClose asChild>
-                <Button type="submit" variant="outline">
-                  Disagree
-                </Button>
-              </DialogClose>
-              <Button type="submit">Agree</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <Button color="destructive" className="shadow-md mx-1"><Upload size={20} className='pr-1' />Export</Button> */}
-          {/* <Button color="warning" className="shadow-md"><Upload size={20} className='pr-1' />Add</Button> */}
-        </div>
-      </div>
-
       {/* Table */}
       <table className="min-w-full text-left">
-        {/* Table headers */}
         <thead>
           <tr>
-            <th
-              className="px-2 py-2 cursor
--pointer"
-              onClick={() => handleSort("userId")}
-            >
-              ORDER{" "}
-              {sortConfig.key === "userId"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            {/* <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("id")}
-            >
-              ORDER STATUS{" "}
-              {sortConfig.key === "id"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th> */}
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("title")}
-            >
-              PAYMENT STATUS{" "}
-              {sortConfig.key === "title"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              SHIPPING STATUS{" "}
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              Costumer{" "}
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              Created on{" "}
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              Order Total{" "}
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              ACTION{" "}
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
+            <th className="px-2 py-2">ORDER</th>
+            <th className="px-2 py-2">PAYMENT STATUS</th>
+            <th className="px-2 py-2">SHIPPING STATUS</th>
+            <th className="px-2 py-2">Customer</th>
+            <th className="px-2 py-2">Created on</th>
+            <th className="px-2 py-2">Order Total</th>
+            <th className="px-2 py-2">ACTION</th>
           </tr>
         </thead>
-        {/* Table data */}
-        <tbody>
-          {slicedData.map((item) => (
-            <tr key={item.id}>
-              <td className="px-2 py-2">{item.orderid}</td>
-           
-              <td className="px-2 py-2 w-[200px]">{item.title}</td>
-              <td className="px-2 py-2">{item.orderstatusname}</td>
-              <td className="px-2 py-2"></td>
-              <td className="px-2 py-2">{item.orderdate}</td>
-              <td className="px-2 py-2">{item.ordertotal}</td>
-              <td className="px-2 py-2">
-                <div className="text-center">
-                  <Link href={`/station/sales/order/viewOrderDetails/${item.orderid}`}>
-                    <Button className="p-0 bg-transparent hover:bg-transparent  text-black  dark:text-white">
-                      <Eye size={20}></Eye>
-                    </Button>
-                  </Link>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+       
+          {/* Table data */}
+          <tbody >
+            {data.map((item) => (
+              <tr key={item.id}>
+                <td className="px-2 py-2">{item.orderid}</td>
+
+                <td className="px-2 py-2 w-[200px]">{item.title}</td>
+                <tr key={item.id} >
+                  {/* Other table cells */}
+                  <td className="px-2 py-2">
+                    <OrderStatusCell status={item.orderstatus} />
+                  </td>
+                </tr>
+                <td className="px-2 py-2">{item.buyerName}</td>
+                <td className="px-2 py-2">{item.orderdate.split('T')[0]}</td>
+                <td className="px-2 py-2">{item.ordertotal}</td>
+                <td className="px-2 py-2">
+                  <div className="text-center">
+                    <Link href={`/station/sales/order/viewOrderDetails/${item.orderid}`}>
+                      <Button className="p-0 bg-transparent hover:bg-transparent  text-black  dark:text-white">
+                        <Eye size={20}></Eye>
+                      </Button>
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
       {/* Pagination */}
-      <div className="flex justify-end mt-4">{renderPagination()}</div>
+
+      <div className="flex justify-end mt-4">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
     </div>
   );
 };
 
-export default order;
+export default Order;

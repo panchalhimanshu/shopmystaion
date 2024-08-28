@@ -70,6 +70,7 @@ const CustomTimePicker = ({ value, onChange, className }) => {
         const ampm = isAM ? 'AM' : 'PM';
         onChange(`${formattedHours}:${formattedMinutes}${ampm}`);
     };
+    const [availableShippingMethods, setAvailableShippingMethods] = useState([]);
 
     return (
         <div className={`flex items-center ${className}`}>
@@ -112,6 +113,7 @@ const Card = () => {
             const response = await CallFor2('api-fe/DeliverySlotAdminAPI/Create', 'GET', null, 'Auth');
             if (response) {
                 setAvailableShippingMethods(response.data.AvailableShippingMethods.map(method => ({
+                    ...method,
                     value: method.Value,
                     label: method.Text,
                 })));
@@ -123,6 +125,11 @@ const Card = () => {
     }, []);
 
     const handleShippingMethodChange = (selectedOptions) => {
+        const updatedMethods = availableShippingMethods.map(method => ({
+            ...method,
+            Selected: selectedOptions.some(option => option.value === method.Value)
+        }));
+        setAvailableShippingMethods(updatedMethods);
         setSelectedShippingMethods(selectedOptions ? selectedOptions.map(option => option.value) : []);
         setFormErrors((prevErrors) => ({
             ...prevErrors,
@@ -225,16 +232,21 @@ const Card = () => {
                     <div className={containerClasses}>
                         <label className="block mb-1 font-medium w-1/5">Time Slot</label>
                         <div className="flex space-x-4">
+                            <div> Start  Time<br/>
                             <CustomTimePicker
                                 onChange={(value) => handleTimeSlotChange('start', value)}
                                 value={timeSlot.start}
                                 className={`dark:bg-black ${inputClasses}`}
-                            />
+                            /> 
+                            </div>
+                            <div> End Time<br/>
                             <CustomTimePicker
                                 onChange={(value) => handleTimeSlotChange('end', value)}
                                 value={timeSlot.end}
                                 className={inputClasses}
                             />
+                        </div>
+
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">

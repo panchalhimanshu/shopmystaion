@@ -1,44 +1,109 @@
+"use client"
+import { Dot, Minus } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import React from 'react'
 
-const reports = () => {
+const report = () => {
+  const router = useRouter();
   return (
     <>
-      <div className=" justify-between flex gap-1 pb-3 ">
-        <div className="text-2xl text-orange-400">REPORTS</div>
+      <div className="flex justify-between items-center mb-6">
+        <div className="text-orange-500 text-2xl bold">REPORTS</div>
       </div>
-      <div className="flex justify-around">
-        <div className="border border-gray-400 rounded-2xl p-6 w-1/3">
-          <div className="mb-4 text-blue-950 dark:text-white text-lg text-center">
+      <div className="border border-gray-350 rounded-sm ">
+        <div className="flex justify-between">
+          <p className="text-lg font-semibold text-blue-950 dark:text-white">
             Inventory Reports
+          </p>
+          <Minus size={20} />
+        </div>
+
+        <div className="grid grid-cols-4 p-2">
+            <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/getDailyStock`)} >
+              <Dot /> GetDailyStock
+            </div>
+
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/getDailyInventory`)} >
+            <Dot /> GetDailyInventory
           </div>
-          <div className="p-3">
-            <Link href={"/station/reports/receivingReports"}>
-              <p className="mb-2"> &#128900; Receiving Report</p>
-            </Link>
-            <p className="mb-2"> &#128900; Stock Movement-RM</p>
-            <p className="mb-2"> &#128900; Low Stock Alert</p>
-            <p className="mb-2"> &#128900; Wastage Report-RM</p>
-            <p className="mb-2"> &#128900; Daily Inventory Report- RM</p>
-            <p className="mb-2"> &#128900; Daily Food Cost</p>
-            <p className="mb-2"> &#128900; Current Available Stock-RM</p>
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/getDailyDispatch`)} >
+            <Dot /> DailyDispatch
+          </div>
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/lowWastage`)} >
+            <Dot /> LowWastage
+          </div>
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/topWastage`)} >
+            <Dot /> TopWastage
           </div>
         </div>
-        <div className="border border-gray-400 rounded-2xl p-6  w-1/3">
-          <div className="mb-4 text-blue-950 dark:text-white text-lg text-center">
-            {" "}
+      </div>
+
+      <div className="border border-gray-350 rounded-sm mt-5">
+        <div className="flex justify-between">
+          <p className="text-lg font-semibold text-blue-950 dark:text-white">
             Sales Reports
+          </p>
+          <Minus size={20} />  
+        </div>
+        <div className="grid grid-cols-4 p-2">
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/locationWiseSales`)} >
+            <Dot /> LocationWiseSales
           </div>
-          <div className="p-3">
-            <p className="mb-2"> &#128900; Sales By Order</p>
-            <p className="mb-2"> &#128900; Total Sales Report</p>
-            <p className="mb-2"> &#128900; Daily Sales Report - WOW / MOM</p>
-            <p className="mb-2"> &#128900; Sales Growth Report</p>
-            <p className="mb-2"> &#128900; Daily Sales Report</p>
-            <p className="mb-2"> &#128900; Best Time of Sales</p>
-            <p className="mb-2"> &#128900; Product Wise Sales Growth</p>
-            <p className="mb-2"> &#128900; Top Selling Product</p>
-            <p className="mb-2"> &#128900; Low Selling Product</p>
+
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/lowestSellingDay`)} >
+            <Dot />
+            LowestSellingDay
+          </div>
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/highestSellingDay`)} >
+            <Dot /> HighestSellingDay
+          </div>
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/getProductWiseSale`)} >
+            <Dot /> GetProductWiseSale
+          </div>
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/getDailySalesReport`)} >
+            <Dot /> Daily Sales Report
+          </div>
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/getTopProducts`)} >
+            <Dot /> Top Products
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-gray-350 rounded-sm mt-5">
+        <div className="flex justify-between">
+          <p className="text-lg font-semibold text-blue-950 dark:text-white">
+          Category Reports
+          </p>
+          <Minus size={20} />  
+        </div>
+        <div className="grid grid-cols-4 p-2">
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/lowCategory`)} >
+            <Dot /> LowCategory
+          </div>
+
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/topCategory`)} >
+            <Dot />
+            TopCategory
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-gray-350 rounded-sm mt-5">
+        <div className="flex justify-between">
+          <p className="text-lg font-semibold text-blue-950 dark:text-white">
+          Orders Reports
+          </p>
+          <Minus size={20} />  
+        </div>
+        <div className="grid grid-cols-4 p-2">
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push(`/station/reports/ordersReport`)}>
+            <Dot /> GetOrders
+          </div>
+
+          <div className="border border-orange-400 flex m-1 cursor-pointer" onClick={()=>router.push('/station/reports/getOrdersItem')}>
+            <Dot />
+            GetOrdersItem
           </div>
         </div>
       </div>
@@ -46,4 +111,4 @@ const reports = () => {
   );
 }
 
-export default reports
+export default report

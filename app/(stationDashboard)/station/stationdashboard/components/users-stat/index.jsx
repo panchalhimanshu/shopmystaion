@@ -14,7 +14,7 @@ const UsersStat = () => {
     {
       id: 2,
       country: "India",
-      count: "06",
+      count: "60606060",
     },
     {
       id: 3,
@@ -24,7 +24,7 @@ const UsersStat = () => {
     {
       id: 4,
       country: "Australia",
-      count: "10",
+      count: "100",
     },
     {
       id: 5,
@@ -41,7 +41,7 @@ const UsersStat = () => {
             <span className="text-xs text-default-600 ml-1">In Last 30 Minutes</span>
           </div>
           <div className="flex-none flex items-center gap-1">
-            <span className="text-4xl font-semibold text-primary">63</span>
+            <span className="text-4xl font-semibold text-primary">6300</span>
             <span className="text-2xl text-success">
               <Icon icon="heroicons:arrow-trending-up-16-solid" />
             </span>

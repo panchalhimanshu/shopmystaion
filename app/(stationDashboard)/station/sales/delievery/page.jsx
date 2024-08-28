@@ -1,51 +1,74 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Download, Eye, Search, SearchIcon, Upload } from "lucide-react";
-
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Eye, Search, SearchIcon } from "lucide-react";
 import Link from "next/link";
 import CallFor from "@/utilities/CallFor";
-import { Data } from "emoji-mart";
+import { Badge } from "@/components/ui/badge";
+import Pagination from "@/components/pagination/Pagination";
 
-const delievery = () => {
+const Delivery = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(9);
+  const [pageSize, setPageSize] = useState(5);
   const [searchQuery, setSearchQuery] = useState("");
+  const [totalPages, setTotalPages] = useState(0);
   const [tempSearchFields, setTempSearchFields] = useState({
-    "Order Id": "",
-    "Shipping Status": "",
-    "Order Status": "",
-    "Created On": "",
-    "Payment Status": "",
-  });
-  const [searchFields, setSearchFields] = useState({
-    userId: "",
-    id: "",
-    title: "",
-    completed: "",
+    fromDate: "",
+    toDate: "",
+    targetOrgUid: "",
   });
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
+  const [organisations, setOrganisations] = useState([]);
+  const [initialModel, setInitialModel] = useState(null);
 
-  const fetchData = async () => {
+  const badgeColor = (statusname) => {
+    switch (statusname.toLowerCase()) {
+      case 'delivered':
+        return 'success';
+      case 'confirmed':
+        return 'success';
+      case 'not delivered':
+        return 'destructive';
+      case 'pending':
+        return 'warning';
+      case 'partially delivered':
+        return 'warning';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const fetchInitialData = async () => {
+    try {
+      const response = await CallFor("v2/Orders/GetDeliveries", "GET", null, "Auth");
+      setInitialModel(response.data.model);
+      setOrganisations(response.data.dropdowns.organisations);
+    } catch (error) {
+      console.error("Error fetching initial data:", error);
+    }
+  };
+
+  const fetchDeliveries = async () => {
+    if (!initialModel) return;
+
     try {
       setLoading(true);
-      const response = await CallFor(`v2/Orders/GetDeliveries?PageNumber=1&PageSize=3`,"GET",null,"Auth");
+      const response = await CallFor("v2/Orders/GetDeliveries", "POST", {
+        ...initialModel,
+        fromDate: tempSearchFields.fromDate || initialModel.fromDate,
+        toDate: tempSearchFields.toDate || initialModel.toDate,
+        targetOrgUid: tempSearchFields.targetOrgUid || initialModel.targetOrgUid,
+        paginationFilter: {
+          pageNumber: page,
+          pageSize: pageSize,
+        }
+      }, "Auth");
       setData(response.data.data);
-      console.log(response.data.data);
-      
+      setTotalPages(Math.ceil(response.data.totalRecords / pageSize));
+
       setLoading(false);
     } catch (error) {
       setError(error);
@@ -54,31 +77,26 @@ const delievery = () => {
   };
 
   useEffect(() => {
-    
-
-    fetchData();
+    fetchInitialData();
   }, []);
-  
 
   useEffect(() => {
-    setPage(1); // Reset to first page on search
-  }, [searchQuery, pageSize]);
+    if (initialModel) {
+      fetchDeliveries();
+    }
+  }, [initialModel, page, pageSize,]);
 
   const handlePageChange = (pageNumber) => {
     setPage(pageNumber);
   };
 
-  const handlePageSizeChange = (size) => {
-    setPageSize(size);
-  };
-
   const handleSearch = () => {
-    setSearchFields(tempSearchFields);
-    setSearchQuery(JSON.stringify(tempSearchFields)); // Trigger useEffect
+    setPage(1); // Reset to first page when searching
+    fetchDeliveries();
   };
 
-  const handleInputChange = (columnName, value) => {
-    setTempSearchFields({ ...tempSearchFields, [columnName]: value });
+  const handleInputChange = (field, value) => {
+    setTempSearchFields({ ...tempSearchFields, [field]: value });
   };
 
   const handleSort = (columnName) => {
@@ -99,126 +117,49 @@ const delievery = () => {
     return 0;
   });
 
-  const filteredData = sortedData.filter((item) => {
-    for (let key in searchFields) {
-      if (searchFields[key] !== "") {
-        const itemValue = item[key]?.toString().toLowerCase() || "";
-        const searchValue = searchFields[key].toLowerCase();
-        if (!itemValue.includes(searchValue)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  });
+  // Calculate total pages based on data length and pageSize
 
-  // Calculate total pages based on filtered data length and pageSize
-  const totalPages = Math.ceil(filteredData.length / pageSize);
-  // Calculate starting index for pagination
-  const startIndex = (page - 1) * pageSize;
-  // Slice the filtered data based on startIndex and pageSize
-  const slicedData = filteredData.slice(startIndex, startIndex + pageSize);
-
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-
-    const paginationItems = [];
-    const handlePageClick = (pageNumber) => () => handlePageChange(pageNumber);
-
-    paginationItems.push(
-      <button
-        key="prev"
-        className="bg-blue-500 text-white px-3 m-1 py-2 rounded mr-2"
-        onClick={handlePageClick(page - 1)}
-        disabled={page === 1}
-      >
-        Previous
-      </button>
-    );
-
-    for (let i = 1; i <= totalPages; i++) {
-      if (
-        i === page ||
-        i <= 2 ||
-        i >= totalPages - 1 ||
-        (i >= page - 1 && i <= page + 1)
-      ) {
-        paginationItems.push(
-          <button
-            key={i}
-            className={`px-3 py-1 m-1 rounded ${
-              i === page ? "bg-blue-700 text-white" : "bg-blue-500 text-white"
-            }`}
-            onClick={handlePageClick(i)}
-          >
-            {i}
-          </button>
-        );
-      } else if (paginationItems[paginationItems.length - 1].key !== "...") {
-        paginationItems.push(
-          <span key="..." className="px-4 py-2">
-            ...
-          </span>
-        );
-      }
-    }
-
-    paginationItems.push(
-      <button
-        key="next"
-        className="bg-blue-500 text-white m-1 px-3 py-1 rounded"
-        onClick={handlePageClick(page + 1)}
-        disabled={page === totalPages}
-      >
-        Next
-      </button>
-    );
-
-    return paginationItems;
-  };
+  
 
   return (
     <div className="container mx-auto">
-      <div className="flex ">
+      <div className="flex">
         <SearchIcon className="text-gray-500" size={19} />
-        <h1 className="text-[20px] font-semibold mb-4 pl-2">SEARCH</h1>
+        <h1 className="text-[20px] font-semibold mb-4 pl-2">Search</h1>
       </div>
       {/* Search inputs */}
-      <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-x-10">
-        {/* Search input for each field */}
-        {Object.keys(tempSearchFields).map((field) => (
-          <div key={field} className="flex items-center mb-2">
-            <label className="w-1/4 font-medium mr-2">{field}</label>
-            {field === "Created On" ? (
-              <input
-                type="date" // Change input type to 'date'
-                className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                value={tempSearchFields[field]}
-                onChange={(e) => handleInputChange(field, e.target.value)}
-              />
-            ) : field === "Shipping Status" ||
-              field === "Order Status" ||
-              field === "Payment Status" ? (
-              <select
-                className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                value={tempSearchFields[field]}
-                onChange={(e) => handleInputChange(field, e.target.value)}
-              >
-                <option value=""></option>
-                <option value="pending">Pending</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                {/* Add more options as needed */}
-              </select>
-            ) : (
-              <input
-                type="text"
-                className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                onChange={(e) => handleInputChange(field, e.target.value)}
-              />
-            )}
-          </div>
-        ))}
+      <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-x-10">
+        <div className="flex items-center mb-2">
+          <label className="w-1/4 font-medium mr-2">From Date</label>
+          <input
+            type="date"
+            className="border border-gray-300 px-4 py-2 rounded w-3/4"
+            value={tempSearchFields.fromDate}
+            onChange={(e) => handleInputChange("fromDate", e.target.value)}
+          />
+        </div>
+        <div className="flex items-center mb-2">
+          <label className="w-1/4 font-medium mr-2">To Date</label>
+          <input
+            type="date"
+            className="border border-gray-300 px-4 py-2 rounded w-3/4"
+            value={tempSearchFields.toDate}
+            onChange={(e) => handleInputChange("toDate", e.target.value)}
+          />
+        </div>
+        <div className="flex items-center mb-2">
+          <label className="w-1/4 font-medium mr-2">Organization</label>
+          <select
+            className="border border-gray-300 px-4 py-2 rounded w-3/4"
+            value={tempSearchFields.targetOrgUid}
+            onChange={(e) => handleInputChange("targetOrgUid", e.target.value)}
+          >
+            <option value="">Select Organization</option>
+            {organisations.map((org) => (
+              <option key={org.uid} value={org.uid}>{org.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="flex justify-center lg:mb-1 mb-3 items-center">
         <Button
@@ -231,32 +172,8 @@ const delievery = () => {
         </Button>
       </div>
 
-      <div className=" justify-between flex gap-1 pb-3 ">
-        <div className="text-2xl text-orange-400">DELIVERIES</div>
-        <div>
-          {/* <Dialog>
-          <DialogTrigger asChild>
-            <Button color="success" className="shadow-md pr-2"> <Download size={20} className='pr-1' />Import</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="text-base font-medium ">
-                Add Station Data
-              </DialogTitle>
-            </DialogHeader>
-            <DialogFooter className="mt-8">
-              <DialogClose asChild>
-                <Button type="submit" variant="outline">
-                  Disagree
-                </Button>
-              </DialogClose>
-              <Button type="submit">Agree</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <Button color="destructive" className="shadow-md mx-1"><Upload size={20} className='pr-1' />Export</Button> */}
-          {/* <Button color="warning" className="shadow-md"><Upload size={20} className='pr-1' />Add</Button> */}
-        </div>
+      <div className="justify-between flex gap-1 pb-3">
+        <div className="text-2xl text-orange-400">Deliveries</div>
       </div>
 
       {/* Table */}
@@ -264,89 +181,44 @@ const delievery = () => {
         {/* Table headers */}
         <thead>
           <tr>
-            <th
-              className="px-2 py-2 cursor
--pointer"
-              onClick={() => handleSort("userId")}
-            >
-              SHIPMENT #{" "}
-              {sortConfig.key === "userId"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
+            <th className="px-2 py-2 cursor-pointer" onClick={() => handleSort("odtid")}>
+              SHIPMENT # {sortConfig.key === "odtid" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
             </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("id")}
-            >
-              ORDER #{" "}
-              {sortConfig.key === "id"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
+            <th className="px-2 py-2 cursor-pointer" onClick={() => handleSort("orderid")}>
+              ORDER # {sortConfig.key === "orderid" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
             </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("title")}
-            >
-              TRACKING #{" "}
-              {sortConfig.key === "title"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
+            <th className="px-2 py-2 cursor-pointer" onClick={() => handleSort("title")}>
+              TRACKING # {sortConfig.key === "title" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
             </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              DATE OF SHIPPED{" "}
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
+            <th className="px-2 py-2 cursor-pointer" onClick={() => handleSort("odtdate")}>
+              DATE OF SHIPPED {sortConfig.key === "odtdate" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
             </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              DATE OF DELIVERY{" "}
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
+            <th className="px-2 py-2 cursor-pointer" onClick={() => handleSort("odtexpdeldate")}>
+              DATE OF DELIVERY {sortConfig.key === "odtexpdeldate" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
             </th>
-            <th
-              className="px-2 py-2 cursor-pointer"
-              onClick={() => handleSort("completed")}
-            >
-              ACTION
-              {sortConfig.key === "completed"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
+            <th className="px-2 py-2 cursor-pointer" onClick={() => handleSort("statusname")}>
+              Status {sortConfig.key === "statusname" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
             </th>
+            <th className="px-2 py-2">ACTION</th>
           </tr>
         </thead>
         {/* Table data */}
         <tbody>
-          {slicedData.map((item) => (
+          {sortedData.map((item) => (
             <tr key={item.id}>
-              <td className="px-2 py-2">{}</td>
+              <td className="px-2 py-2">{item.odtid}</td>
               <td className="px-2 py-2">{item.orderid}</td>
               <td className="px-2 py-2">{item.title}</td>
-              <td className="px-2 py-2">{item.odtdate}</td>
-              <td className="px-2 py-2">{item.odtdate}</td>
+              <td className="px-2 py-2">{item.odtdate?.split("T")[0]}</td>
+              <td className="px-2 py-2">{item.odtexpdeldate?.split("T")[0]}</td>
+              <td className="px-2 py-2"><Badge color={badgeColor(item.statusname)}>{item.statusname}</Badge></td>
               <td className="px-2 py-2">
                 <div className="text-center">
-               <Link href={"/station/sales/delievery/viewdelievery"}>   <Button className="p-0 bg-transparent hover:bg-transparent  text-black  dark:text-white">
-                    <Eye size={20}></Eye>
-                  </Button> </Link>
+                  <Link href={`/station/sales/delievery/viewdelievery/${item.odtid}`}>
+                    <Button className="p-0 bg-transparent hover:bg-transparent text-black dark:text-white">
+                      <Eye size={20}></Eye>
+                    </Button>
+                  </Link>
                 </div>
               </td>
             </tr>
@@ -355,9 +227,15 @@ const delievery = () => {
       </table>
 
       {/* Pagination */}
-      <div className="flex justify-end mt-4">{renderPagination()}</div>
+      <div className="flex justify-end mt-4">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
     </div>
   );
 };
 
-export default delievery;
+export default Delivery;

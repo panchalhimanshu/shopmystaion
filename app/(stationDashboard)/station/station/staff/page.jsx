@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { Button } from "@/components/ui/button";
 import {
   Eye,
@@ -16,6 +15,8 @@ import { useRouter } from "next/navigation";
 import CallFor from "@/utilities/CallFor";
 import DeleteDialog from "@/components/DeleteDialog";
 import Pagination from "@/components/pagination/Pagination";
+import { Badge } from "@/components/ui/badge";
+import axios from "axios";
 
 const Staff = () => {
   const [data, setData] = useState([]);
@@ -23,56 +24,30 @@ const Staff = () => {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const itemsPerPage = 10;
-
-  const [tempSearchFields, setTempSearchFields] = useState({
-    fullname: "",
-    emailid: "",
-    rolename: "",
-    orgname: "",
-  });
+  const itemsPerPage = 5;
 
   const [searchFields, setSearchFields] = useState({
     fullname: "",
-    emailid: "",
-    rolename: "",
-    orgname: "",
+    // rolename: "",
+    // orgname: "",
+    accountstatus: "",
+    roletypes: "",  // New state for role types
   });
 
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
   const router = useRouter();
   const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
   const isAdmin = userData.isadmin === true;
-  const roleId = userData.roleid;
 
-  const dataa = {
-    roleId: roleId,
-    desc: false,
-    allRoles: true,
-    filter: {
-      name: tempSearchFields.fullname,
-      status: 0,
-    },
-  };
+  const [bodyData, setBodyData] = useState(null);
 
-  useEffect(() => {
-    fetchData(currentPage);
-  }, [currentPage, searchQuery]);
-
-  const fetchData = async (page) => {
-    setLoading(true);
+  const fetchBodyData = async () => {
     try {
-      const response = await CallFor(
-        `v2/users/GetUsersByRoleId?PageNumber=${page}&PageSize=${itemsPerPage}`,
-        "POST",
-        JSON.stringify(dataa),
-        "Auth"
-      );
-      setData(response.data.allUsers);
-      setTotalPages(Math.ceil(response.data.totalCount / itemsPerPage));
+      setLoading(true);
+      const response = await CallFor("v2/users/GetUsersByRoleId", "get", null, "Auth");
+      setBodyData(response.data);
       setLoading(false);
     } catch (error) {
       setError(error);
@@ -81,20 +56,65 @@ const Staff = () => {
   };
 
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page on search
-  }, [searchQuery]);
+    fetchBodyData();
+  }, []);
+
+  useEffect(() => {
+    if (bodyData) {
+      fetchData(currentPage, searchFields);
+    }
+  }, [currentPage, bodyData]);
+
+  // useEffect(() => {
+  //   if (bodyData) {
+  //     fetchData(currentPage, searchFields);
+  //   }
+  // }, [currentPage]);
+
+  const fetchData = async (page, fields) => {
+    setLoading(true);
+    try {
+      const requestBody = {
+        roleId: fields.roletypes ? parseInt(fields.roletypes) : 0,  // Adjusted roleId
+        desc: false,
+        allRoles: true,
+        roletypeId: fields.roletypes ? parseInt(fields.roletypes) : null,
+        name: fields.fullname || null,
+        accountstatus: fields.accountstatus || null,
+        paginationFilter: {
+          pageNumber: page,
+          pageSize: itemsPerPage
+        }
+      };
+
+      const response = await CallFor(
+        `v2/users/GetUsersByRoleId`,
+        "POST",
+        JSON.stringify(requestBody),
+        "Auth"
+      );
+      setData(response.data.data);
+      setTotalPages(Math.ceil(response.data.totalCount / itemsPerPage));
+      setLoading(false);
+    } catch (error) {
+      setError(error);
+      setData([]);
+      setTotalPages(0);
+      setLoading(false);
+    }
+  };
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
   };
 
   const handleSearch = () => {
-    setSearchFields(tempSearchFields);
-    setSearchQuery(JSON.stringify(tempSearchFields)); // Trigger useEffect
+    setCurrentPage(1);
+    fetchData(1, searchFields);
   };
 
   const handleInputChange = (columnName, value) => {
-    setTempSearchFields({ ...tempSearchFields, [columnName]: value });
+    setSearchFields(prevFields => ({ ...prevFields, [columnName]: value }));
   };
 
   const handleSort = (columnName) => {
@@ -124,60 +144,105 @@ const Staff = () => {
     return 0;
   });
 
-  const filteredData = sortedData.filter((item) => {
-    for (let key in searchFields) {
-      if (searchFields[key] !== "") {
-        const itemValue = item[key]?.toString().toLowerCase() || "";
-        const searchValue = searchFields[key].toLowerCase();
-        if (!itemValue.includes(searchValue)) {
-          return false;
+
+   const handleExport = async () => {
+      try {
+        setLoading(true);
+
+        const response = await axios({
+          method: 'GET',
+          url: "http://192.168.1.176:126/api/v2/users/ExportUsers",
+          responseType: 'blob',
+          headers: {
+            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        // Check if the response is indeed a blob
+        if (response.data instanceof Blob) {
+          // Create a blob from the response data
+          const blob = new Blob([response.data], { type: response.headers['content-type'] });
+
+          // Create a link element and trigger the download
+          const link = document.createElement('a');
+          link.href = window.URL.createObjectURL(blob);
+
+          // Try to get the filename from the Content-Disposition header
+          const contentDisposition = response.headers['content-disposition'];
+          let filename = 'products_export.xlsx';
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+            if (filenameMatch && filenameMatch.length === 2) {
+              filename = filenameMatch[1];
+            }
+          }
+
+          link.download = filename;
+          link.click();
+        } else {
+          console.error('Expected blob response but received:', response.data);
         }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Export failed:", error);
+        setLoading(false);
       }
-    }
-    return true;
-  });
+  };
+
+
+console.log(bodyData);
+
+
 
   return (
     <div className="container mx-auto">
       <div className="flex">
         <SearchIcon className="text-gray-500" size={19} />
-        <h1 className="text-[20px] font-semibold mb-4 pl-2">SEARCH</h1>
+        <h1 className="text-[20px] font-semibold mb-4 pl-2">Search</h1>
       </div>
       <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-x-10">
-        {Object.keys(tempSearchFields).map((field) => (
+        {Object.keys(searchFields).map((field) => (
           <div key={field} className="flex items-center mb-2">
             <label className="w-1/4 font-medium mr-2">
-              {field === "fullname" && " Name"}
-              {field === "emailid" && "Warehouse name"}
-              {field === "rolename" && "Role"}
-              {field === "orgname" && "Organization Name"}
+              {field === "fullname" && "Name"}
+              {/* {field === "rolename" && "Role"} */}
+              {/* {field === "orgname" && "Organization Name"} */}
+              {field === "accountstatus" && "Account Status"}
+              {field === "roletypes" && "Role Type"} {/* New label */}
             </label>
-            {["rolename", "orgname"].includes(field) ? (
+            {field === "accountstatus" ? (
               <select
                 className="border border-gray-300 px-4 py-2 rounded w-3/4"
                 onChange={(e) => handleInputChange(field, e.target.value)}
+                value={searchFields[field]}
               >
-                <option value=""></option>
-                {field === "rolename" && (
-                  <>
-                    <option value="admin">Admin</option>
-                    <option value="manager">Manager</option>
-                    <option value="user">User</option>
-                  </>
-                )}
-                {field === "orgname" && (
-                  <>
-                    <option value="warehouse1">Warehouse 1</option>
-                    <option value="warehouse2">Warehouse 2</option>
-                    <option value="warehouse3">Warehouse 3</option>
-                  </>
-                )}
+                <option value="">All</option>
+                {bodyData?.mastervalues?.accountstatus?.mastervalues.map((status) => (
+                  <option key={status.mvid} value={status.mvid}>
+                    {status.mastervalue1}
+                  </option>
+                ))}
+              </select>
+            ) : field === "roletypes" ? (  // New dropdown for role types
+              <select
+                className="border border-gray-300 px-4 py-2 rounded w-3/4"
+                onChange={(e) => handleInputChange(field, e.target.value)}
+                value={searchFields[field]}
+              >
+                <option value="">All</option>
+                {bodyData?.dropdowns?.roletypes.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
               </select>
             ) : (
               <input
                 type="text"
                 className="border border-gray-300 px-4 py-2 rounded w-3/4"
-                value={tempSearchFields[field]}
+                value={searchFields[field]}
                 onChange={(e) => handleInputChange(field, e.target.value)}
               />
             )}
@@ -191,10 +256,11 @@ const Staff = () => {
         </Button>
       </div>
       <div className="mb-4 flex items-center justify-between">
-        <div className="text-2xl text-orange-400">STAFF LIST</div>
+        <div className="text-2xl text-orange-400">Staff List</div>
         <div>
           <StaffImportModal />
-          <Button color="destructive" className="shadow-md mx-1">
+          <Button color="destructive" className="shadow-md mx-1"   onClick={handleExport}
+            disabled={loading}>
             <Upload size={20} className="pr-1" />
             Export
           </Button>
@@ -208,146 +274,144 @@ const Staff = () => {
           </Button>
         </div>
       </div>
-      <table className="min-w-full text-left">
-        <thead>
-          <tr>
-            <th
-              className="px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("uid")}
-            >
-              SR.NO{" "}
-              {sortConfig.key === "uid"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("uid")}
-            >
-              EMP ID{" "}
-              {sortConfig.key === "uid"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("fullname")}
-            >
-              NAME{" "}
-              {sortConfig.key === "fullname"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("mobno")}
-            >
-              PHONE NO{" "}
-              {sortConfig.key === "mobno"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("rolename")}
-            >
-              ROLE{" "}
-              {sortConfig.key === "rolename"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("accountstatus")}
-            >
-              STATUS{" "}
-              {sortConfig.key === "accountstatus"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-            <th
-              className="px-4 py-2 cursor-pointer"
-              onClick={() => handleSort("action")}
-            >
-              ACTION{" "}
-              {sortConfig.key === "action"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.map((item, index) => (
-            <tr key={item.uid}>
-              <td className="px-4 py-2">{index + 1}</td>
-              <td className="px-4 py-2">{item.uid}</td>
-              <td className="px-4 py-2">{item.fullname}</td>
-              <td className="px-4 py-2">{item.mobno}</td>
-              <td className="px-4 py-2">{item.rolename}</td>
-              <td className="px-4 py-2">{item.accountstatus || "N/A"}</td>
-              <td className="px-4 py-2">
-                <div>
-                  <Button
-                    className="p-0 mr-2 bg-transparent hover:bg-transparent text-black dark:text-gray-300"
-                    onClick={() =>
-                      router.push(
-                        `/station/station/staff/staffDetail/${item.uid}`
-                      )
-                    }
-                  >
-                    <Eye size={20}></Eye>
-                  </Button>
-                  {isAdmin && (
+      {loading ? (
+        <div className="text-center py-4">Loading...</div>
+      ) : data.length > 0 ? (
+        <table className="min-w-full text-left">
+          <thead>
+            <tr>
+              <th
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => handleSort("uid")}
+              >
+                SR.NO{" "}
+                {sortConfig.key === "uid"
+                  ? sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"
+                  : ""}
+              </th>
+              <th
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => handleSort("uid")}
+              >
+                EMP ID{" "}
+                {sortConfig.key === "uid"
+                  ? sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"
+                  : ""}
+              </th>
+              <th
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => handleSort("fullname")}
+              >
+                NAME{" "}
+                {sortConfig.key === "fullname"
+                  ? sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"
+                  : ""}
+              </th>
+              <th
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => handleSort("mobno")}
+              >
+                PHONE NO{" "}
+                {sortConfig.key === "mobno"
+                  ? sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"
+                  : ""}
+              </th>
+              <th
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => handleSort("rolename")}
+              >
+                ROLE{" "}
+                {sortConfig.key === "rolename"
+                  ? sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"
+                  : ""}
+              </th>
+              <th
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => handleSort("accountstatus")}
+              >
+                STATUS{" "}
+                {sortConfig.key === "accountstatus"
+                  ? sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"
+                  : ""}
+              </th>
+              <th className="px-4 py-2">ACTION</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedData.map((item, index) => (
+              <tr key={item.uid}>
+                <td className="px-4 py-2">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                <td className="px-4 py-2">{item.uid}</td>
+                <td className="px-4 py-2">{item.fullname}</td>
+                <td className="px-4 py-2">{item.mobno}</td>
+                <td className="px-4 py-2">{item.roleTypename}</td>
+                <td className="px-4 py-2">{item.accountstatus == 48 ? <Badge color="success" variant="outline">Active</Badge> : item.accountstatus == 49 ? <Badge color="destructive" variant="outline">InActive</Badge> : "N/A"}</td>
+                <td className="px-4 py-2">
+                  <div>
                     <Button
                       className="p-0 mr-2 bg-transparent hover:bg-transparent text-black dark:text-gray-300"
                       onClick={() =>
                         router.push(
-                          `/station/station/staff/editEmployee/${item.uid}`
+                          `/station/station/staff/staffDetail/${item.uid}`
                         )
                       }
                     >
-                      <FilePenLine size={20}></FilePenLine>
+                      <Eye size={20}></Eye>
                     </Button>
-                  )}
-                  <Button
-                    className="p-0 bg-transparent hover:bg-transparent text-black dark:text-gray-300"
-                    onClick={() => handleDeleteUser(item.uid)}
-                  >
-                    <Trash size={20}></Trash>
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex justify-end mt-4">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
-      </div>
+                    {isAdmin && (
+                      <Button
+                        className="p-0 mr-2 bg-transparent hover:bg-transparent text-black dark:text-gray-300"
+                        onClick={() =>
+                          router.push(
+                            `/station/station/staff/editEmployee/${item.uid}`
+                          )
+                        }
+                      >
+                        <FilePenLine size={20}></FilePenLine>
+                      </Button>
+                    )}
+                    <Button
+                      className="p-0 bg-transparent hover:bg-transparent text-black dark:text-gray-300"
+                      onClick={() => handleDeleteUser(item.uid)}
+                    >
+                      <Trash size={20}></Trash>
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="text-center py-4 text-gray-500">No data found</div>
+      )}
+      {data.length > 0 && (
+        <div className="flex justify-end mt-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
       <DeleteDialog
         isOpen={isDeleteDialogOpen}
         onClose={handleCloseDeleteDialog}
         callfor={CallFor}
         onDelete={() => {
-          fetchData(currentPage);
+          fetchData(currentPage, searchFields);
           setIsDeleteDialogOpen(false);
         }}
         delUrl={`v2/users/DeleteUser?uid=${selectedUserId}`}

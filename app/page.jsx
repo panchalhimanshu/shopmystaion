@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import CallFor from '@/utilities/CallFor';
 import { Shopmystationlogin } from "@/components/svg";
+import { useRouter } from "next/navigation";
 
 const schema = z.object({
   email: z.string().email({ message: "Your email is invalid." }),
@@ -21,6 +22,8 @@ export default function Login() {
   const [isPending, startTransition] = React.useTransition();
   const [passwordType, setPasswordType] = React.useState("password");
   const isDesktop2xl = useMediaQuery("(max-width: 1530px)");
+
+  const router = useRouter()
 
   const togglePasswordType = () => {
     setPasswordType((prevType) => (prevType === "text" ? "password" : "text"));
@@ -69,6 +72,7 @@ export default function Login() {
         if (response.status === 200) {
           const userData = response.data;
           sessionStorage.setItem("userData", JSON.stringify(userData));
+          sessionStorage.setItem("nopToken", JSON.stringify(userData.nopToken));
           sessionStorage.setItem("token", JSON.stringify(userData.token));
 
           if (data.rememberMe) {
@@ -83,15 +87,15 @@ export default function Login() {
           switch (userData.roleid) {
             case 4:
               toast.success("Login Successful");
-              window.location.assign("/warehouse");
+              router.push("/warehouse");
               break;
             case 5:
               toast.success("Login Successful");
-              window.location.assign("/station/stationdashboard");
+              router.push("/station/stationdashboard");
               break;
-            case 1:
+            case 0:
               toast.success("Login Successful");
-              window.location.assign("/admin");
+              router.push("/admin");
               break;
             default:
               toast.error("Invalid role ID.");

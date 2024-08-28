@@ -9,21 +9,24 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         pages.push(i);
       }
     } else {
-      pages.push(1, 2);
+      pages.push(1);
 
       if (currentPage > 3) {
         pages.push('...');
       }
 
-      if (currentPage > 2 && currentPage < totalPages - 1) {
-        pages.push(currentPage);
+      const startPage = Math.max(2, currentPage - 1);
+      const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
       }
 
       if (currentPage < totalPages - 2) {
         pages.push('...');
       }
 
-      pages.push(totalPages - 1, totalPages);
+      pages.push(totalPages);
     }
 
     return pages;
@@ -43,15 +46,14 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       {pages.map((page, index) => (
         <button
           key={index}
-          onClick={() => onPageChange(page)}
+          onClick={() => page !== '...' && onPageChange(page)}
           disabled={page === currentPage || page === '...'}
-          className={`px-4 py-2 rounded ${
-            page === currentPage
-            ? 'bg-[#846cf9] dark:bg-[#846cf9] text-white dark:text-white'
+          className={`px-4 py-2 rounded ${page === currentPage
+              ? 'bg-[#846cf9] dark:bg-[#846cf9] text-white dark:text-white'
               : 'bg-gray-300 dark:bg-gray-700 text-black dark:text-white'
-          } ${page === '...' ? 'cursor-default' : 'cursor-pointer'}`}
+            } ${page === '...' ? 'cursor-default' : 'cursor-pointer'}`}
         >
-          {page}
+          {page}    
         </button>
       ))}
       <button

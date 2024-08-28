@@ -38,7 +38,7 @@ function categoriview({params}) {
         console.log(response.data.catid);
 
         setFormData(
-          response.data)
+          response.data.data)
     // catid : response.catid,
     // catname: response.data.catname,
     // catdesc:  response.data.catdesc,
@@ -80,7 +80,7 @@ function categoriview({params}) {
           /> */}
         </div>
         <div className="flex items-center space-x-4">
-          <label htmlFor="fullDescription" className="w-1/4 font-medium dark:text-white text-gray-700">Description :  {formData.catdesc}</label>
+          <label htmlFor="fullDescription" className=" font-medium dark:text-white text-gray-700">Description :  {formData.catdesc}</label>
           {/* <textarea
             id="fullDescription"
             name="fullDescription"

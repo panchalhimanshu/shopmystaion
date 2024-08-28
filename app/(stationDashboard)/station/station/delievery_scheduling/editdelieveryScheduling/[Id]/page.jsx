@@ -257,16 +257,22 @@ const EditDeliverySlot = ({ params }) => {
                     <div className={containerClasses}>
                         <label className="block mb-1 font-medium w-1/5">Time Slot</label>
                         <div className="flex space-x-4">
+                            <div> Start Time<br/>
                             <CustomTimePicker
                                 value={timeSlot.start}
                                 onChange={(value) => handleTimeSlotChange('start', value)}
                                 className={inputClasses}
                             />
+                        </div>
+
+                            <div> End  Time<br/>
                             <CustomTimePicker
                                 value={timeSlot.end}
                                 onChange={(value) => handleTimeSlotChange('end', value)}
                                 className={inputClasses}
                             />
+                        </div>
+
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">

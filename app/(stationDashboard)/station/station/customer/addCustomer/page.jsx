@@ -22,6 +22,8 @@ const AddCustomer = () => {
 
   const userData = JSON.parse(sessionStorage.getItem("userData") || "{}");
   const orgid = userData.orgid;
+  const roleids = userData.roleid;
+
 
   // Define yup schema for validation
   const schema = yup.object().shape({
@@ -40,13 +42,13 @@ const AddCustomer = () => {
     emailid: formData.email,
     mobno: formData.phoneNo,
     password: formData.password,
-    canlogin: false,
+    canlogin: true,
     usercode: "",
     image: "",
     profilestatus: 1,
     isapproved: true,
     accountstatus: 1,
-    roleName: "Customer",
+    roleName: null,
     roleModels: [
       {
         urmid: 0,
@@ -77,11 +79,12 @@ const AddCustomer = () => {
 
       
 
-      if (response.status) {
+      if (response.data.status == true) { 3
+        -
         reToast.success("Customer saved successfully!");
         router.push("/station/station/customer/");
       } else {
-        reToast.error("Error saving customer.");
+        reToast.error(response.data.message);
       }
     } catch (error) {
       if (error.name === 'ValidationError') {
@@ -217,7 +220,7 @@ const AddCustomer = () => {
                 </div>
             )}
           </div>
-          <div className="flex items-center space-x-4">
+          {/* <div className="flex items-center space-x-4">
             <label
               htmlFor="isSpecial"
               className="w-1/4 font-medium dark:text-white text-gray-700"
@@ -228,13 +231,9 @@ const AddCustomer = () => {
               <Switch
                 defaultChecked
 
-                // checked={formData.isSpecial}
-                // onChange={(checked) =>
-                //   setFormData({ ...formData, isSpecial: checked })
-                // }
               />
             </div>
-          </div>
+          </div> */}
         </div>
       </form>
       <div className="mt-5 text-center">

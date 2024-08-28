@@ -72,6 +72,11 @@ export const Stationmenus = {
             icon: ClipBoard,
           },
           {
+            title: "External Vendor",
+            href: "/station/station/Externalwarehouse",
+            icon: Graph,
+          },
+          {
             title: "Delivery Scheduling ",
             href: "/station/station/delievery_scheduling",
             icon: ClipBoard,
@@ -93,6 +98,7 @@ export const Stationmenus = {
             href: "/station/Catalogue/Products",
             icon: Graph,
           },
+          
           {
             title: "Categories",
             href: "/station/Catalogue/Categories",
@@ -142,6 +148,7 @@ export const Stationmenus = {
             href: "/station/Purchase/Requistion",
             icon: Graph,
           },
+          
           {
             title: "PO",
             href: "/station/Purchase/po",
@@ -184,6 +191,16 @@ export const Stationmenus = {
             title: "Portal Setting",
             href: "/station/portals/portal_setting",
             icon: ClipBoard,
+          },
+          {
+            title: "Vendor Profile",
+            href: "/station/portals/vendorprofile",
+            icon: ClipBoard,
+          },
+          {
+            title: "Carousels",
+            href: "/station/portals/carousels",
+            icon: ClipBoard,
           }
         ]
       },
@@ -197,7 +214,6 @@ export const Stationmenus = {
         title: "Reports",
         icon: Report,
         href: "/station/reports",
-        
       }
 
       

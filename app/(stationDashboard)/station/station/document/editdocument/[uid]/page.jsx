@@ -20,6 +20,7 @@ const AddDocument = ({ params }) => {
   const [loading, setLoading] = useState(false);
   const [DocTypeList, setDocTypeList] = useState([]);
   const [selectedDocTypeId, setSelectedDocTypeId] = useState("");
+  const [documentData, setDocumentData] = useState({});
 
 
   const handleCancelBtn = (e) => {
@@ -31,25 +32,20 @@ const AddDocument = ({ params }) => {
   const uoid = userData.orgid;
 
 
-  useEffect(() => {
-    const GetDocTypeList = async () => {
-      setLoading(true);
-      try {
-        const response = await CallFor(
-          "v2/document/GetDocTypeList",
-          "GET",
-          null,
-          "Auth"
-        );
-        setDocTypeList(response.data.data);
-        setLoading(false);
-      } catch (error) {
-        setError(error.message);
-        setLoading(false);
-      }
-    };
+  const fetchInitialData = async () => {
+    try {
+      const response = await CallFor("v2/document/SaveDocument", "GET", null, "Auth");
 
-    GetDocTypeList();
+      if (response.data) {
+        setDocTypeList(response.data.mastervalues.doctypeid.mastervalues);
+      }
+    } catch (error) {
+      console.error("Error fetching initial data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchInitialData();
   }, []);
 
   useEffect(() => {
@@ -62,20 +58,27 @@ const AddDocument = ({ params }) => {
           null,
           "Auth"
         );
-        const documentData = response.data.data;
-        setDocName(documentData.name);
-        setSelectedFileName2(documentData.docurl);
+        const fetchedData = response.data.data;
+        setDocumentData(fetchedData);  // Store the fetched data in state
+        setDocName(fetchedData.name);
+        setSelectedFileName2(fetchedData.docUrl);
 
-        const docTypeResponse = await CallFor(
-          "v2/document/GetDocTypeList",
-          "GET",
-          null,
-          "Auth"
-        );
-        const docTypeData = docTypeResponse.data.data.find(
-          (v) => v.doctypename === documentData.doctype
-        );
-        setSelectedDocTypeId(docTypeData.id);
+        // const docTypeResponse = await CallFor(
+        //   "v2/document/GetDocTypeList",
+        //   "GET",
+        //   null,
+        //   "Auth"
+        // );
+        const docTypeResponse = await CallFor("v2/document/SaveDocument", "GET", null, "Auth");
+
+      if (docTypeResponse.data) {
+      const docTypeData = docTypeResponse.data.mastervalues.doctypeid.mastervalues.find(
+        (v) => v.mastervalue1 === fetchedData.docType
+      );
+      setSelectedDocTypeId(docTypeData.mvid);
+      }
+      
+      
 
         setLoading(false);
       } catch (error) {
@@ -86,6 +89,7 @@ const AddDocument = ({ params }) => {
 
     fetchData();
   }, [params.uid]);
+
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -126,11 +130,8 @@ const AddDocument = ({ params }) => {
 
   const handleSaveBtn = async (e) => {
     e.preventDefault();
-    console.log("docName:", docName);
-    console.log("selectedDocTypeId:", selectedDocTypeId);
-    console.log("selectedFile:", selectedFile);
 
-    if (!docName || !selectedDocTypeId ) {
+    if (!docName || !selectedDocTypeId) {
       setError("All fields are required.");
       return;
     }
@@ -144,21 +145,42 @@ const AddDocument = ({ params }) => {
     formData.append("docname", docName);
     formData.append("doctypeid", selectedDocTypeId);
     formData.append("docid", params.uid);
-     formData.append("entityid", uoid);
-    formData.append("entitytypeid", 13);
+    formData.append("entityid", uoid);
+    formData.append("entitytypeid",98);
 
     setLoading(true);
     try {
+      // Update Document API Call
       const response = await CallFor(
         "v2/document/UpdateDocument",
         "POST",
         formData,
         "authWithContentTypeMultipart"
       );
-      console.log("API Response:", response);
-      if (response.data.status) {
-        reToast.success("Document saved successfully!");
-        router.push("/station/station/document");
+
+      if (response.data) {
+        // Update DocEntityMapping API Call
+        const mappingBody = {
+          id: documentData.entityDocMapId, // Now it's properly defined
+          entityid: uoid,
+          documentid:parseInt(params.uid),
+          entitytypeid: 98,
+          documenttypeid: selectedDocTypeId,
+        };
+
+        const mappingResponse = await CallFor(
+          "v2/document/UpdateDocEntitiyMapping",
+          "POST",
+          mappingBody,
+          "Auth"
+        );
+
+        if (mappingResponse.data.status) {
+          reToast.success("Document saved successfully!");
+          router.push("/station/station/document");
+        } else {
+          reToast.error("Error saving document mapping.");
+        }
       } else {
         reToast.error("Error saving Document.");
       }
@@ -168,6 +190,8 @@ const AddDocument = ({ params }) => {
       setLoading(false);
     }
   };
+
+
 
   return (
     <>
@@ -197,8 +221,8 @@ const AddDocument = ({ params }) => {
               <option value="">Select Document Type</option>
               {DocTypeList &&
                 DocTypeList.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.doctypename}
+                  <option key={type.mvid} value={type.mvid}>
+                    {type.mastervalue1}
                   </option>
                 ))}
             </select>
@@ -247,12 +271,12 @@ const AddDocument = ({ params }) => {
               </div>
             ) }
           </div>
-          {error && (
+          {/* {error && (
             <div className="flex items-center mb-2 mt-1">
               <label className="w-1/6 font-medium mr-2"></label>
               <div className="text-red-500">{error}</div>
             </div>
-          )}
+          )} */}
         </div>
 
         <div className="text-center">

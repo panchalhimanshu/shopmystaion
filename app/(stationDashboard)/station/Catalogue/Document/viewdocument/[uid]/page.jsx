@@ -68,7 +68,7 @@ function viewdocument({params}) {
             <div className="grid grid-cols-2 w-75">
               <div className="flex items-center mb-5">
                 <label className="w-1/6 font-bold mr-2 text-blue-900 dark:text-white">DocId</label>
-                <p className='text-blue-900 dark:text-white ml-4'> <span className='font-bold'> : </span> <span className="ml-3">{data.docid}</span></p>
+                <p className='text-blue-900 dark:text-white ml-4'> <span className='font-bold'> : </span> <span className="ml-3">{data.docId}</span></p>
               </div>
               <div className="flex items-center mb-5">
                 <label className="w-1/6 font-bold mr-2 text-blue-900 dark:text-white">DocName</label>
@@ -76,7 +76,7 @@ function viewdocument({params}) {
               </div>
               <div className="flex items-center mb-5">
                 <label className="w-1/6 font-bold mr-2 text-blue-900 dark:text-white">DocType</label>
-                <p className='text-blue-900 dark:text-white ml-4'> <span className='font-bold'> : </span><span className="ml-3">{data.doctype}</span> </p>
+                <p className='text-blue-900 dark:text-white ml-4'> <span className='font-bold'> : </span><span className="ml-3">{data.docType}</span> </p>
               </div>
               <div className="flex items-center mb-5">
                 <label className="w-1/6 font-bold mr-2 text-blue-900 dark:text-white">Format</label>
@@ -84,7 +84,7 @@ function viewdocument({params}) {
               </div>
               <div className="flex items-center mb-5">
                 <label className="w-1/6 font-bold mr-2 text-blue-900 dark:text-white">Uploaded Date</label>
-                <p className='text-blue-900 dark:text-white ml-4'> <span className='font-bold'> : </span><span className="ml-3">{data.uploaddate}</span> </p>
+                <p className='text-blue-900 dark:text-white ml-4'> <span className='font-bold'> : </span><span className="ml-3">{data.uploadDate}</span> </p>
               </div>
               <div className="flex items-center space-x-4">
                 <label
@@ -93,7 +93,7 @@ function viewdocument({params}) {
                 >
                   DocView
                 </label>
-                <p className='flex text-blue-900 dark:text-white ml-4'> <span className='font-bold pr-2'> :  </span> <a className="ml-3" href={ GlobalPropperties.viewdocument + `${data.docurl}`}><Eye size={20} />  </a> </p>
+                <p className='flex text-blue-900 dark:text-white ml-4'> <span className='font-bold pr-2'> :  </span> <a className="ml-3" href={ GlobalPropperties.viewdocument + `${data.docUrl}`}><Eye size={20} />  </a> </p>
               </div>
          
             </div>

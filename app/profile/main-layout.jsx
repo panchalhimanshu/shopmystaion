@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
-import Header from "@/components/partials/header";
-import Sidebar from "@/components/partials/sidebar/Warehousesidebar";
+import Header from "@/components/partials/stationheader";
+import Sidebar from "@/components/partials/sidebar/Stationsidebar";
 import { cn } from "@/lib/utils";
 import { useSidebar, useThemeStore } from "@/store";
 import { motion, AnimatePresence } from "framer-motion";

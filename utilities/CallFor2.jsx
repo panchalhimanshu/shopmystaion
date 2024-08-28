@@ -2,9 +2,11 @@ import axios from 'axios';
 import GlobalProperties from './GlobalPropperties';
 
 const getToken = () => {
-    const user = sessionStorage.getItem('token') || null;
+    const user = sessionStorage.getItem('nopToken') || null;
     const data = user ? JSON.parse(user) : null;
-    return data ? data : null;
+   return data ? data : null;
+//    return "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJDdXN0b21lcklkIjo2NjcxLCJleHAiOjE3Mzc3ODUwNTEuMH0.Ej3i-ZHv9k8swSuVNuJcz4KF7r_AeGiA-j9KN-zdNmc"
+  
 }
 
 const UrlType = {
@@ -31,14 +33,14 @@ const CallFor2 = async (requestUrl, method, data, headerType) => {
             break;
         case 'Auth':
             // headers['authorization'] = 'Bearer ' + getToken();
-            headers['Token'] = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJDdXN0b21lcklkIjoxLCJleHAiOjE3MzQ3NzY3NDIuMH0.Ry59TosqpfR7rOjt9BznbMWUgzcAYcrokl00AoRplGs';
+            headers['Token'] = getToken();
             headers['Content-Type'] = 'application/json';
             break;
         case 'authWithoutContentType':
             headers['authorization'] = 'Bearer ' + getToken();
             break;
         case 'authWithContentTypeMultipart':
-            headers['Token'] = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJDdXN0b21lcklkIjoxLCJleHAiOjE3MzQ3NzY3NDIuMH0.Ry59TosqpfR7rOjt9BznbMWUgzcAYcrokl00AoRplGs';
+            headers['Token'] = getToken();
             headers['Content-Type'] = 'multipart/form-data';
             break;
         default:
@@ -63,3 +65,7 @@ const CallFor2 = async (requestUrl, method, data, headerType) => {
 }
 
 export default CallFor2;
+
+
+
+// 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJDdXN0b21lcklkIjoxLCJleHAiOjE3MzQ3NzY3NDIuMH0.Ry59TosqpfR7rOjt9BznbMWUgzcAYcrokl00AoRplGs'
